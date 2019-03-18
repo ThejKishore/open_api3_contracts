@@ -1,0 +1,100 @@
+#https://editor.swagger.io/
+openapi: "3.0.0"
+info:
+  description: Spring Cloud Contract Verifier Http Server OA3 Sample
+  version: "1.0.0"
+  title: Address Microservice api
+paths:
+  /v1/zipCodes/{zipcode}:
+    get:
+      summary: get details for given zipcode.
+      x-contracts:
+        - contractId: 7
+          name: get details for given zipcode
+          priority: 1
+      parameters:
+        - name: zipcode
+          in: path
+          description: Zip code
+          required: true
+          schema:
+            type: string
+            default: "75056"
+          x-contracts:
+            - contractId: 7
+              default: "75056"
+              matchers:
+                paramaters:
+                  - name: zipcode
+                    in: path
+                    type: by_regex
+                    value: "[0-9]{5}"
+        - name: Authorization
+          in: header
+          description: authorization jwt token
+          required: true
+          schema:
+            type: string
+            default: "something.somethign"
+          x-contracts:
+            - contractId: 7
+              parameters:
+                Authorization: "asdsdsds"
+              matchers:
+                paramaters:
+                  - name: Authorization
+                    in: header
+                    type: by_regex
+                    value: "[a-zA-Z0-9 .]+"
+      responses:
+        200:
+          description: created ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  city:
+                    type: string
+                    required: true
+                  state:
+                    type: string
+                  zipCode:
+                    type: string
+                  directShipStoreNumber:
+                    type: string
+                  primeDistributionCenterId:
+                    type: string
+                  citySuspendOrderIndicator:
+                    type: string
+          x-contracts:
+            - contractId: 7
+              body:
+                city: "asdsadasdasd"
+                state: "Texas"
+                zipCode: "Something"
+                directShipStoreNumber: "03"
+                primeDistributionCenterId: "02"
+                citySuspendOrderIndicator: "12"
+              headers:
+                Content-Type: application/json;charset=UTF-8
+              matchers:
+                body:
+                  - path: $.['city']
+                    type: by_regex
+                    value: "[a-zA-Z0-9 .]+"
+                  - path: $.['state']
+                    type: by_regex
+                    value: "[a-zA-Z0-9 .]+"
+                  - path: $.['zipCode']
+                    type: by_regex
+                    value: "[a-zA-Z0-9 .]+"
+                  - path: $.['directShipStoreNumber']
+                    type: by_regex
+                    value: "[a-zA-Z0-9 .]+"
+                  - path: $.['primeDistributionCenterId']
+                    type: by_regex
+                    value: "[a-zA-Z0-9 .]+"
+                  - path: $.['citySuspendOrderIndicator']
+                    type: by_regex
+                    value: "[a-zA-Z0-9 .]+"

@@ -1,5 +1,6 @@
 package org.springframework.cloud.contract.verifier.spec.openapi
 
+import com.mifmif.common.regex.Generex
 import groovy.util.logging.Slf4j
 import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.oas.models.media.MediaType
@@ -12,6 +13,7 @@ import org.springframework.cloud.contract.spec.internal.ExecutionProperty
 import org.springframework.cloud.contract.spec.internal.MatchingTypeValue
 import org.springframework.cloud.contract.spec.internal.RegexPatterns
 import org.springframework.cloud.contract.verifier.converter.YamlContract
+import wiremock.com.fasterxml.jackson.databind.ObjectMapper
 
 import java.util.regex.Pattern
 
@@ -24,6 +26,64 @@ import static org.apache.commons.lang3.StringUtils.isNumeric
 class OpenApiContractConverter implements ContractConverter<Collection<PathItem>> {
 
     public static final OpenApiContractConverter INSTANCE = new OpenApiContractConverter()
+
+    private static final String REGEX_SCHEME = "[A-Za-z][+-.\\w^_]*:"
+
+    private static final String HTTPS_REGEX_SCHEME = "https:"
+
+    // Example: "//".
+    private static final String REGEX_AUTHORATIVE_DECLARATION = "/{2}"
+
+    // Optional component. Example: "suzie:abc123@". The use of the format "user:password" is deprecated.
+    private static final String REGEX_USERINFO = "(?:\\S+(?::\\S*)?@)?"
+
+    // Examples: "fitbit.com", "22.231.113.64".
+    private static final String REGEX_HOST = "(?:" +
+            // @Author = http://www.regular-expressions.info/examples.html
+            // IP address
+            "(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)" +
+            "|" +
+            // host name
+            "(?:(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)" +
+            // domain name
+            "(?:\\.(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)*" +
+            // TLD identifier must have >= 2 characters
+            "(?:\\.(?:[a-z\\u00a1-\\uffff]{2,})))"
+
+    // Example: ":8042".
+    private static final String REGEX_PORT = "(?::\\d{2,5})?"
+
+    //Example: "/user/heartrate?foo=bar#element1".
+    private static final String REGEX_RESOURCE_PATH = "(?:/\\S*)?"
+
+    protected static final Pattern HTTPS_URL = Pattern.compile("^(?:" + HTTPS_REGEX_SCHEME + REGEX_AUTHORATIVE_DECLARATION +
+            REGEX_USERINFO + REGEX_HOST + REGEX_PORT + REGEX_RESOURCE_PATH + ")\$")
+
+    protected static final Pattern URL = Pattern.compile("^(?:(?:" + REGEX_SCHEME + REGEX_AUTHORATIVE_DECLARATION + ")?" +
+            REGEX_USERINFO + REGEX_HOST + REGEX_PORT + REGEX_RESOURCE_PATH + ")\$")
+
+    protected static final Pattern TRUE_OR_FALSE = Pattern.compile(/(true|false)/)
+    protected static final Pattern ALPHA_NUMERIC = Pattern.compile('[a-zA-Z0-9]+')
+    protected static final Pattern ONLY_ALPHA_UNICODE = Pattern.compile(/[\p{L} ]*/)
+    protected static final Pattern NUMBER = Pattern.compile('-?(\\d*\\.\\d+|\\d+)')
+    protected static final Pattern INTEGER = Pattern.compile('-?(\\d+)')
+    protected static final Pattern POSITIVE_INT = Pattern.compile('([1-9]\\d*)')
+    protected static final Pattern DOUBLE = Pattern.compile('-?(\\d*\\.\\d+)')
+    protected static final Pattern HEX = Pattern.compile('[a-fA-F0-9]+')
+    protected static final Pattern IP_ADDRESS = Pattern.compile('([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.([01]?\\d\\d?|2[0-4]\\d|25[0-5])')
+    protected static final Pattern HOSTNAME_PATTERN = Pattern.compile('((http[s]?|ftp):/)/?([^:/\\s]+)(:[0-9]{1,5})?')
+    protected static final Pattern EMAIL = Pattern.compile('[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}')
+    protected static final Pattern UUID = Pattern.compile('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}')
+    protected static final Pattern ANY_DATE = Pattern.compile('(\\d\\d\\d\\d)-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])')
+    protected static final Pattern ANY_DATE_TIME = Pattern.compile('([0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])T(2[0-3]|[01][0-9]):([0-5][0-9]):([0-5][0-9])')
+    protected static final Pattern ANY_TIME = Pattern.compile('(2[0-3]|[01][0-9]):([0-5][0-9]):([0-5][0-9])')
+    protected static final Pattern NON_EMPTY = Pattern.compile(/[\S\s]+/)
+    protected static final Pattern NON_BLANK = Pattern.compile(/^\s*\S[\S\s]*/)
+    protected static final Pattern ISO8601_WITH_OFFSET = Pattern.compile(/([0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])T(2[0-3]|[01][0-9]):([0-5][0-9]):([0-5][0-9])(\.\d{3})?(Z|[+-][01]\d:[0-5]\d)/)
+
+
+    ObjectMapper objectMapper = new ObjectMapper()
+
 
     @Override
     boolean isAccepted(File file) {
@@ -81,10 +141,10 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                         sccContracts.add(
                                 Contract.make {
                                     if (openApiContract?.name != null) {
-                                        log.info("Creating Contract for: " + openApiContract?.name)
+                                        log.info("Creating Contract for: {} " , openApiContract?.name)
                                     }
 
-                                    println "Creating Contract for: " + openApiContract?.name
+                                    println "Creating Contract for: ${openApiContract?.name}"
 
                                     name = openApiContract?.name
                                     description = openApiContract?.description
@@ -110,22 +170,64 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                             method("PATCH")
                                         }
                                         if (operation?.parameters) {
-                                            url(contractPath) {
-                                                queryParameters {
-                                                    operation?.parameters?.each { openApiParam ->
-                                                        openApiParam?.extensions?."x-contracts".each { contractParam ->
-                                                            if (contractParam.contractId == contractId) {
-                                                                if (openApiParam.in == 'path' || openApiParam.in == 'query') {
-                                                                    parameter(openApiParam.name, contractParam.default)
-                                                                }
-                                                                if (openApiParam.in == 'header') {
-                                                                    headers {
-                                                                        header(openApiParam.name, contractParam.default)
+
+                                            boolean isPathBoolean = false
+                                            String consumerExposedPath = new String(contractPath)
+                                            String produceExposedPath = new String(contractPath)
+                                            operation?.parameters?.each { openApiParam ->
+                                                openApiParam?.extensions?."x-contracts".each { contractParam ->
+                                                    if (contractParam.contractId == contractId) {
+                                                        if (openApiParam.in == 'path') {
+                                                            def key = String.format("{%s}", openApiParam.name)
+                                                            produceExposedPath = produceExposedPath.replace(key, contractParam.default)
+                                                            consumerExposedPath = consumerExposedPath.replace(key, contractParam.matchers.paramaters.value[0])
+                                                            isPathBoolean = true
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            if(isPathBoolean) {
+                                                url($(c(regex(consumerExposedPath)), p(produceExposedPath))) {
+                                                    queryParameters {
+                                                        operation?.parameters?.each { openApiParam ->
+                                                            openApiParam?.extensions?."x-contracts".each { contractParam ->
+                                                                if (contractParam.contractId == contractId) {
+                                                                    if (openApiParam.in == 'query') {
+                                                                        parameter(openApiParam.name, contractParam.default)
+                                                                    }
+                                                                    if (openApiParam.in == 'header') {
+                                                                        headers {
+                                                                            header(openApiParam.name, contractParam.default)
+                                                                        }
+                                                                    }
+                                                                    if (openApiParam.in == 'cookie') {
+                                                                        cookies {
+                                                                            cookie(openApiParam.name, contractParam.default)
+                                                                        }
                                                                     }
                                                                 }
-                                                                if (openApiParam.in == 'cookie') {
-                                                                    cookies {
-                                                                        cookie(openApiParam.name, contractParam.default)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } else{
+                                                url(contractPath) {
+                                                    queryParameters {
+                                                        operation?.parameters?.each { openApiParam ->
+                                                            openApiParam?.extensions?."x-contracts".each { contractParam ->
+                                                                if (contractParam.contractId == contractId) {
+                                                                    if (openApiParam.in == 'query') {
+                                                                        parameter(openApiParam.name, contractParam.default)
+                                                                    }
+                                                                    if (openApiParam.in == 'header') {
+                                                                        headers {
+                                                                            header(openApiParam.name, contractParam.default)
+                                                                        }
+                                                                    }
+                                                                    if (openApiParam.in == 'cookie') {
+                                                                        cookies {
+                                                                            cookie(openApiParam.name, contractParam.default)
+                                                                        }
                                                                     }
                                                                 }
                                                             }
@@ -133,6 +235,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                     }
                                                 }
                                             }
+
                                         } else {
                                             url(contractPath)
                                         }
@@ -147,19 +250,40 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
 
                                             if(operation?.requestBody?.content){
                                                 LinkedHashMap<String, MediaType> content = operation?.requestBody?.content
-
                                                 //todo - not sure if there is a use case for more than one map entry here
-                                                header("Content-Type", content.entrySet().getAt(0).key)
+                                                header("Content-Type", containing(content.entrySet().getAt(0).key))
                                             }
                                         }
 
                                         if (operation?.requestBody?.extensions?."x-contracts") {
                                             operation?.requestBody?.extensions?."x-contracts"?.each { contractBody ->
                                                 if (contractBody.contractId == contractId) {
-                                                    body(contractBody.body)
+//                                                    log.debug ("-------contract body ${contractBody.body} -----------")
+//                                                    body(toDslProperty(contractBody.body))
+                                                    def data = new HashMap<String,DslProperty>()
+                                                    contractBody?.body?.each{ entry ->
+//                                                        log.debug( "---- ${entry}")
+//                                                        log.debug(" ----${contractBody?.matchers?.body[0].getClass().name}")
+                                                        if(operation?.requestBody?.content.entrySet().getAt(0).key != 'application/x-www-form-urlencoded') {
+                                                            if (contractBody.matchers?.body != null) {
+                                                                Pattern regexVal = regexifFound(contractBody.matchers.body, entry.key)
+                                                                log.debug("----------- {} ", regexVal)
+                                                                data.put(entry.key, value(c(regex(regexVal)), p(entry.value)))
+//                                                            data.put(entry.key, value(c(entry.value), p(entry.value)))
+                                                            } else {
+                                                                data.put(entry.key, entry.value)
+                                                            }
+                                                        } else {
+                                                            data.put(entry.key, entry.value)
+                                                        }
+                                                    }
+                                                    body(data)
+
                                                     bodyMatchers {
+//                                                    stubMatchers    {
                                                         contractBody.matchers?.body?.each { matcher ->
                                                             MatchingTypeValue value = null
+                                                            log.debug(" ----------${matcher.type}---------")
                                                             switch (matcher.type) {
                                                                 case 'by_date':
                                                                     value = byDate()
@@ -196,88 +320,118 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                     openApiResponse?.value?.extensions?.'x-contracts'?.each { responseContract ->
                                                         if (responseContract.contractId == contractId) {
 
-                                                                def httpResponse = openApiResponse.key.replaceAll("[^a-zA-Z0-9 ]+","")
+                                                            def httpResponse = openApiResponse.key.replaceAll("[^a-zA-Z0-9 ]+","")
 
-                                                                if (isNumeric(httpResponse)) {
-                                                                    status(httpResponse as Integer)
+                                                            if (isNumeric(httpResponse)) {
+                                                                status(httpResponse as Integer)
+                                                            }
+
+                                                            def contentTypeSB = new StringBuffer()
+
+                                                            openApiResponse.getValue()?.content?.keySet()?.each { val ->
+                                                                contentTypeSB.append(val)
+                                                                contentTypeSB.append(';')
+                                                            }
+
+                                                            headers {
+
+                                                                responseContract.headers.each { String headerKey, Object headerValue ->
+                                                                    def matcher = responseContract?.matchers?.headers?.find { it.key == headerKey }
+                                                                    if (headerValue instanceof List) {
+                                                                        ((List) headerValue).each {
+                                                                            Object serverValue = serverValue(it, matcher, headerKey)
+                                                                            header(headerKey, new DslProperty(it, serverValue))
+                                                                        }
+                                                                    } else {
+                                                                        Object serverValue = serverValue(headerValue, matcher, headerKey)
+                                                                        header(headerKey, new DslProperty(headerValue, serverValue))
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            if(responseContract.cookies){
+                                                                cookies {
+                                                                    responseContract.cookies.each { responseCookie ->
+                                                                        def matcher =responseContract.matchers.cookies.find { it.key == responseCookie.key }
+                                                                        Object serverValue = serverCookieValue(responseCookie.value, matcher, responseCookie.key)
+
+                                                                        cookie(responseCookie.key, new DslProperty(responseCookie.value, serverValue))
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            if (responseContract.body) {
+                                                                //todo
+                                                                log.debug("-------- ${responseContract.body}")
+                                                                def data = new HashMap<String,DslProperty>()
+                                                                responseContract?.body?.each { entry ->
+                                                                    if (responseContract.matchers?.body != null) {
+                                                                        Pattern regexVal = regexifFound(responseContract.matchers.body, entry.key)
+                                                                        Generex generex = new Generex(regexVal.pattern())
+                                                                        String generateRegexBaseValue = generex.random(5,10)
+                                                                        log.debug("generated random value --- ${generateRegexBaseValue}")
+                                                                        if (entry.value) {
+//                                                                            log.debug("----------- {} ", regexVal)
+//                                                                            data.put(entry.key, value(c(entry.value), p(regex(regexVal))))
+                                                                            data.put(entry.key, value(c(generateRegexBaseValue), p(regex(regexVal))))
+//                                                                      data.put(entry.key, value(c(entry.value), p(entry.value)))
+                                                                        } else{
+                                                                            //if entry value is null an empty string
+                                                                            data.put(entry.key,generateRegexBaseValue)
+
+                                                                        }
+                                                                    } else {
+                                                                        data.put(entry.key, entry.value)
+                                                                    }
                                                                 }
 
-                                                                def contentTypeSB = new StringBuffer()
 
-                                                                openApiResponse.getValue()?.content?.keySet()?.each { val ->
-                                                                    contentTypeSB.append(val)
-                                                                    contentTypeSB.append(';')
-                                                                }
+//                                                                body(responseContract.body)
+                                                                body(data)
+                                                            }
 
-                                                                headers {
+                                                            if (responseContract.bodyFromFile) body(file(responseContract.bodyFromFile))
 
-                                                                    responseContract.headers.each { String headerKey, Object headerValue ->
-                                                                        def matcher = responseContract?.matchers?.headers?.find { it.key == headerKey }
-                                                                        if (headerValue instanceof List) {
-                                                                            ((List) headerValue).each {
-                                                                                Object serverValue = serverValue(it, matcher, headerKey)
-                                                                                header(headerKey, new DslProperty(it, serverValue))
+                                                            if (responseContract.async) async()
+
+                                                            bodyMatchers{
+//                                                            testMatchers{
+                                                                responseContract.matchers?.body?.each { matcher ->
+                                                                    MatchingTypeValue value = null
+                                                                    switch (matcher.type) {
+                                                                        case 'by_date':
+                                                                            value = byDate()
+                                                                            break
+                                                                        case 'by_time':
+                                                                            value = byTime()
+                                                                            break
+                                                                        case 'by_timestamp':
+                                                                            value = byTimestamp()
+                                                                            break
+                                                                        case 'by_regex':
+                                                                            String regex = matcher.value
+                                                                            if (matcher.predefined) {
+                                                                                regex = predefinedToPattern(YamlContract.PredefinedRegex.valueOf(matcher.predefined)).pattern()
                                                                             }
-                                                                        } else {
-                                                                            Object serverValue = serverValue(headerValue, matcher, headerKey)
-                                                                            header(headerKey, new DslProperty(headerValue, serverValue))
-                                                                        }
+                                                                            value = byRegex(regex)
+                                                                            break
+                                                                        case 'by_equality':
+                                                                            value = byEquality()
+                                                                            break
+                                                                        case 'by_type':
+                                                                            value = byType() {
+                                                                                if (matcher.minOccurrence != null) minOccurrence(matcher.minOccurrence)
+                                                                                if (matcher.maxOccurrence != null) maxOccurrence(matcher.maxOccurrence)
+                                                                            }
+                                                                            break
+                                                                        case 'by_command':
+                                                                            value = byCommand(matcher.value)
+                                                                            break
+                                                                        case 'by_null':
+                                                                            value = byNull()
+                                                                            break
                                                                     }
-                                                                }
-
-                                                                if(responseContract.cookies){
-                                                                    cookies {
-                                                                        responseContract.cookies.each { responseCookie ->
-                                                                            def matcher =responseContract.matchers.cookies.find { it.key == responseCookie.key }
-                                                                            Object serverValue = serverCookieValue(responseCookie.value, matcher, responseCookie.key)
-
-                                                                            cookie(responseCookie.key, new DslProperty(responseCookie.value, serverValue))
-                                                                        }
-                                                                    }
-                                                                }
-
-                                                                if (responseContract.body) body(responseContract.body)
-                                                                if (responseContract.bodyFromFile) body(file(responseContract.bodyFromFile))
-                                                                if (responseContract.async) async()
-
-                                                                bodyMatchers {
-                                                                    responseContract.matchers?.body?.each { matcher ->
-                                                                        MatchingTypeValue value = null
-                                                                        switch (matcher.type) {
-                                                                            case 'by_date':
-                                                                                value = byDate()
-                                                                                break
-                                                                            case 'by_time':
-                                                                                value = byTime()
-                                                                                break
-                                                                            case 'by_timestamp':
-                                                                                value = byTimestamp()
-                                                                                break
-                                                                            case 'by_regex':
-                                                                                String regex = matcher.value
-                                                                                if (matcher.predefined) {
-                                                                                    regex = predefinedToPattern(matcher.predefined).pattern()
-                                                                                }
-                                                                                value = byRegex(regex)
-                                                                                break
-                                                                            case 'by_equality':
-                                                                                value = byEquality()
-                                                                                break
-                                                                            case 'by_type':
-                                                                                value = byType() {
-                                                                                    if (matcher.minOccurrence != null) minOccurrence(matcher.minOccurrence)
-                                                                                    if (matcher.maxOccurrence != null) maxOccurrence(matcher.maxOccurrence)
-                                                                                }
-                                                                                break
-                                                                            case 'by_command':
-                                                                                value = byCommand(matcher.value)
-                                                                                break
-                                                                            case 'by_null':
-                                                                                value = byNull()
-                                                                                break
-                                                                        }
-                                                                        jsonPath(matcher.path, value)
-                                                                    }
+                                                                    jsonPath(matcher.path, value)
                                                                 }
                                                             }
                                                         }
@@ -285,53 +439,77 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                 }
                                             }
                                         }
+                                    }
                                 })
                     }
                 }
             }
         }
-
+        log.debug("constact json {}",objectMapper.writeValueAsString(sccContracts[0]))
         return sccContracts
     }
+
+
+    private Pattern regexifFound(ArrayList data,String key){
+        Pattern toBeReturned = NON_EMPTY
+        data.each { keyValue ->
+//            log.debug( "---- ${keyValue} ")
+//            log.debug("-----  {} ",String.format('\$.[\'%s\']',key))
+//            log.debug("----- {} -  {} ",keyValue['path'],keyValue['value'])
+            if( (keyValue['path'] ==  String.format('\$.[\'%s\']',key) || keyValue['path'] ==  String.format('\$.%s',key) ) && (keyValue['type'] == 'by_regex') ) {
+                log.debug("inside the condition ${keyValue.predefined}")
+                if(keyValue.predefined != null){
+                    YamlContract.PredefinedRegex  pdRegx = YamlContract.PredefinedRegex.valueOf(keyValue.predefined)
+                    toBeReturned = predefinedToPattern(pdRegx)
+                } else {
+                    toBeReturned = Pattern.compile(keyValue.value)
+                }
+            }
+        }
+        return toBeReturned
+
+    }
+
+    //only_alpha_unicode, number, any_boolean, ip_address, hostname, email, url, uuid, iso_date, iso_date_time, iso_time, iso_8601_with_offset, non_empty, non_blank
 
     //todo - extend from yaml converter?
     protected Pattern predefinedToPattern(YamlContract.PredefinedRegex predefinedRegex) {
         RegexPatterns patterns = new RegexPatterns()
         switch (predefinedRegex) {
             case YamlContract.PredefinedRegex.only_alpha_unicode:
-                return patterns.onlyAlphaUnicode()
+                return ONLY_ALPHA_UNICODE
             case YamlContract.PredefinedRegex.number:
-                return patterns.number()
+                return NUMBER
             case YamlContract.PredefinedRegex.any_double:
                 return patterns.aDouble()
             case YamlContract.PredefinedRegex.any_boolean:
-                return patterns.anyBoolean()
+                return TRUE_OR_FALSE
             case YamlContract.PredefinedRegex.ip_address:
-                return patterns.ipAddress()
+                return IP_ADDRESS
             case YamlContract.PredefinedRegex.hostname:
-                return patterns.hostname()
+                return HOSTNAME_PATTERN
             case YamlContract.PredefinedRegex.email:
-                return patterns.email()
+                return EMAIL
             case YamlContract.PredefinedRegex.url:
-                return patterns.url()
+                return URL
             case YamlContract.PredefinedRegex.uuid:
-                return patterns.uuid()
+                return UUID
             case YamlContract.PredefinedRegex.iso_date:
-                return patterns.isoDate()
+                return ANY_DATE
             case YamlContract.PredefinedRegex.iso_date_time:
-                return patterns.isoDateTime()
+                return ANY_DATE_TIME
             case YamlContract.PredefinedRegex.iso_time:
-                return patterns.isoTime()
+                return ANY_TIME
             case YamlContract.PredefinedRegex.iso_8601_with_offset:
-                return patterns.iso8601WithOffset()
+                return ISO8601_WITH_OFFSET
             case YamlContract.PredefinedRegex.non_empty:
-                return patterns.nonEmpty()
+                return NON_EMPTY
             case YamlContract.PredefinedRegex.non_blank:
-                return patterns.nonBlank()
+                return NON_BLANK
         }
     }
 
-    //todo - extend from yaml converter?
+//todo - extend from yaml converter?
     protected Object serverValue(Object value, def matcher, String key) {
         Object serverValue = value
         if (matcher?.regex) {
@@ -348,7 +526,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
         return serverValue
     }
 
-    //todo - extend from yaml converter?
+//todo - extend from yaml converter?
     protected Object serverCookieValue(Object value, def matcher, String key) {
         Object serverValue = value
         if (matcher?.regex) {
@@ -363,7 +541,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
         return serverValue
     }
 
-    //todo - extend from yaml converter?
+//todo - extend from yaml converter?
     protected Object clientValue(Object value, YamlContract.KeyValueMatcher matcher, String key) {
         Object clientValue = value
         if (matcher?.regex) {
@@ -378,7 +556,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
         return clientValue
     }
 
-    //todo - extend from yaml converter?
+//todo - extend from yaml converter?
     private void assertPatternMatched(Pattern pattern, value, String key) {
         boolean matches = pattern.matcher(value.toString()).matches()
         if (!matches) throw new IllegalStateException("Broken headers! A header with " +
