@@ -1,5 +1,7 @@
 package org.springframework.cloud.contract.verifier.spec.openapi
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.ObjectWriter
 import com.mifmif.common.regex.Generex
 import groovy.util.logging.Slf4j
 import io.swagger.v3.oas.models.PathItem
@@ -13,7 +15,7 @@ import org.springframework.cloud.contract.spec.internal.ExecutionProperty
 import org.springframework.cloud.contract.spec.internal.MatchingTypeValue
 import org.springframework.cloud.contract.spec.internal.RegexPatterns
 import org.springframework.cloud.contract.verifier.converter.YamlContract
-import wiremock.com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.cloud.contract.verifier.spec.openapi.model.XContract
 
 import java.util.regex.Pattern
 
@@ -26,6 +28,9 @@ import static org.apache.commons.lang3.StringUtils.isNumeric
 class OpenApiContractConverter implements ContractConverter<Collection<PathItem>> {
 
     public static final OpenApiContractConverter INSTANCE = new OpenApiContractConverter()
+    public static final OpenApiConverterHelper helper = new OpenApiConverterHelper()
+    private static ObjectMapper objectMapper = new ObjectMapper();
+    private static ObjectWriter jsonObjectWriter = objectMapper.writerWithDefaultPrettyPrinter();
 
     private static final String REGEX_SCHEME = "[A-Za-z][+-.\\w^_]*:"
 
@@ -82,9 +87,6 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
     protected static final Pattern ISO8601_WITH_OFFSET = Pattern.compile(/([0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])T(2[0-3]|[01][0-9]):([0-5][0-9]):([0-5][0-9])(\.\d{3})?(Z|[+-][01]\d:[0-5]\d)/)
 
 
-    ObjectMapper objectMapper = new ObjectMapper()
-
-
     @Override
     boolean isAccepted(File file) {
         try {
@@ -125,9 +127,12 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
 
     @Override
     Collection<Contract> convertFrom(File file) {
+
+
         def sccContracts = []
 
         def spec = new OpenAPIV3Parser().read(file.path)
+        Map<String, XContract> map = helper.getStringXContractHashMap(spec)
 
         spec?.paths?.each { path, pathItem ->
             pathItem.readOperations().each { operation ->
@@ -135,6 +140,9 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                     operation.extensions."x-contracts".each { openApiContract ->
 
                         def contractId = openApiContract.contractId
+                        log.info(" {} {} ",contractId ,contractId.getClass().name)
+
+                        log.info(" xcontract {} ",jsonObjectWriter.writeValueAsString(map[contractId.toString()]))
 
                         def contractPath = (StringUtils.isEmpty(openApiContract.contractPath)) ? path : openApiContract.contractPath
 
@@ -190,13 +198,21 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                 url($(c(regex(consumerExposedPath)), p(produceExposedPath))) {
                                                     queryParameters {
                                                         operation?.parameters?.each { openApiParam ->
-                                                            openApiParam?.extensions?."x-contracts".each { contractParam ->
+                                                            if (openApiParam.in == 'header') {
+                                                                headers {
+                                                                    log.info(" --- inside ---param --- header ")
+                                                                    header(openApiParam.name, contractParam.default)
+                                                                }
+                                                            }
+
+                                                            /*openApiParam?.extensions?."x-contracts".each { contractParam ->
                                                                 if (contractParam.contractId == contractId) {
                                                                     if (openApiParam.in == 'query') {
                                                                         parameter(openApiParam.name, contractParam.default)
                                                                     }
                                                                     if (openApiParam.in == 'header') {
                                                                         headers {
+                                                                            log.info(" --- inside ---param --- header ")
                                                                             header(openApiParam.name, contractParam.default)
                                                                         }
                                                                     }
@@ -206,7 +222,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                                         }
                                                                     }
                                                                 }
-                                                            }
+                                                            }*/
                                                         }
                                                     }
                                                 }
@@ -214,7 +230,14 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                 url(contractPath) {
                                                     queryParameters {
                                                         operation?.parameters?.each { openApiParam ->
-                                                            openApiParam?.extensions?."x-contracts".each { contractParam ->
+                                                            if (openApiParam.in == 'header') {
+                                                                headers {
+                                                                    log.info(" --- inside ---param --- header ")
+                                                                    log.info(" -header --{} ",map.get(contractId.toString()).XRequestMatcher.XHeader)
+                                                                    header(openApiParam.name, contractParam.default)
+                                                                }
+                                                            }
+                                                            /*openApiParam?.extensions?."x-contracts".each { contractParam ->
                                                                 if (contractParam.contractId == contractId) {
                                                                     if (openApiParam.in == 'query') {
                                                                         parameter(openApiParam.name, contractParam.default)
@@ -230,7 +253,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                                         }
                                                                     }
                                                                 }
-                                                            }
+                                                            }*/
                                                         }
                                                     }
                                                 }
@@ -243,6 +266,9 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                             if (openApiContract?.requestHeaders) {
                                                 openApiContract?.requestHeaders?.each { xheader ->
                                                     xheader.each { k, v ->
+
+                                                        log.info(" -header --{} ",map.get(contractId.toString()).XRequestMatcher.XHeader.key)
+
                                                         header(k, v)
                                                     }
                                                 }
@@ -251,7 +277,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                             if(operation?.requestBody?.content){
                                                 LinkedHashMap<String, MediaType> content = operation?.requestBody?.content
                                                 //todo - not sure if there is a use case for more than one map entry here
-                                                header("Content-Type", containing(content.entrySet().getAt(0).key))
+                                                header(contentType(), containing(content.entrySet().getAt(0).key))
                                             }
                                         }
 
@@ -267,7 +293,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                         if(operation?.requestBody?.content.entrySet().getAt(0).key != 'application/x-www-form-urlencoded') {
                                                             if (contractBody.matchers?.body != null) {
                                                                 Pattern regexVal = regexifFound(contractBody.matchers.body, entry.key)
-                                                                log.debug("----------- {} ", regexVal)
+                                                                log.debug("-----------> {} ", regexVal)
                                                                 data.put(entry.key, value(c(regex(regexVal)), p(entry.value)))
 //                                                            data.put(entry.key, value(c(entry.value), p(entry.value)))
                                                             } else {
@@ -277,10 +303,11 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                             data.put(entry.key, entry.value)
                                                         }
                                                     }
+
+
                                                     body(data)
 
                                                     bodyMatchers {
-//                                                    stubMatchers    {
                                                         contractBody.matchers?.body?.each { matcher ->
                                                             MatchingTypeValue value = null
                                                             log.debug(" ----------${matcher.type}---------")
@@ -395,7 +422,6 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                             if (responseContract.async) async()
 
                                                             bodyMatchers{
-//                                                            testMatchers{
                                                                 responseContract.matchers?.body?.each { matcher ->
                                                                     MatchingTypeValue value = null
                                                                     switch (matcher.type) {
@@ -445,24 +471,22 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                 }
             }
         }
-        log.debug("constact json {}",objectMapper.writeValueAsString(sccContracts[0]))
+        log.debug("constact json {}",jsonObjectWriter.writeValueAsString(sccContracts[0]))
         return sccContracts
     }
 
 
     private Pattern regexifFound(ArrayList data,String key){
         Pattern toBeReturned = NON_EMPTY
-        data.each { keyValue ->
-//            log.debug( "---- ${keyValue} ")
-//            log.debug("-----  {} ",String.format('\$.[\'%s\']',key))
-//            log.debug("----- {} -  {} ",keyValue['path'],keyValue['value'])
+        data.any { keyValue ->
             if( (keyValue['path'] ==  String.format('\$.[\'%s\']',key) || keyValue['path'] ==  String.format('\$.%s',key) ) && (keyValue['type'] == 'by_regex') ) {
                 log.debug("inside the condition ${keyValue.predefined}")
                 if(keyValue.predefined != null){
                     YamlContract.PredefinedRegex  pdRegx = YamlContract.PredefinedRegex.valueOf(keyValue.predefined)
-                    toBeReturned = predefinedToPattern(pdRegx)
+                    return  toBeReturned = predefinedToPattern(pdRegx)
+
                 } else {
-                    toBeReturned = Pattern.compile(keyValue.value)
+                    return toBeReturned = Pattern.compile(keyValue.value)
                 }
             }
         }

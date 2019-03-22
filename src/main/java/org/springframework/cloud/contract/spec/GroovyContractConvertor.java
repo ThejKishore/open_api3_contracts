@@ -4,6 +4,7 @@ package org.springframework.cloud.contract.spec;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.mifmif.common.regex.Generex;
+import io.swagger.v3.oas.models.OpenAPI;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.contract.spec.internal.*;
@@ -12,10 +13,7 @@ import org.springframework.cloud.contract.verifier.spec.openapi.model.Tuple;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XContract;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XMatcherDetails;
 
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -67,7 +65,7 @@ public class GroovyContractConvertor {
     private static XContractCommon $ = new XContractCommon();
 
     @SneakyThrows
-    public static Contract convertXContractToGroovyContract(XContract contract){
+    public static Contract convertXContractToGroovyContract(XContract contract, OpenAPI openApi){
         Contract groovyContract = new Contract();
         groovyContract.priority(contract.getPriority());
         groovyContract.setName(contract.getName());
@@ -90,19 +88,31 @@ public class GroovyContractConvertor {
 
 
         //Add the request body....
+        Map<String,Object> data = new LinkedHashMap<>();
 
+
+        request.body(data);
 
         groovyContract.setRequest(request);
         //[end::create::request]
 
 
         //[start::create::response]
-      /*  Request request = new Request();
-        Headers headers = new Headers();
-        contract.getXRequestMatcher().getXheader().stream()
-                .forEach(headerData -> createRequestHeader(headerData,headers));
-        request.setHeaders(headers);
-        groovyContract.setRequest(request);*/
+        Response response = new Response();
+
+
+        Headers responseHeaders = new Headers();
+        contract.getXResponseMatcher().getXheader().stream()
+                .forEach(headerData -> createResponseHeader(headerData,responseHeaders));
+        response.setHeaders(responseHeaders);
+
+
+
+
+
+        groovyContract.setResponse(response);
+
+
         //[end::create::response]
 
 
@@ -124,6 +134,12 @@ public class GroovyContractConvertor {
         }else{
             return $.toDslProperty(urlPath);
         }
+    }
+
+
+    private static  Map<String,Object> createRequestBody(List<XMatcherDetails> bodyConstructDetails){
+
+        return null;
     }
 
     private static String replaceUrlPathVariablesWithValues(Map<String,String> keyValuePair,String urlPath){
@@ -196,17 +212,27 @@ public class GroovyContractConvertor {
 
     //If content type is not specified then application/json is taken.
     private static void createRequestHeader(XMatcherDetails xMatcherDetails,Headers headers){
-        log.info("pppppp--->{} ",xMatcherDetails);
+        log.info("--->{} ",xMatcherDetails);
         DslProperty dslProperty = null ;
-        if("by_regex".equals(xMatcherDetails.getType())) {
-            String pattern = xMatcherDetails.getValue();
-            if(pattern == null || pattern.trim().isEmpty()){
-                pattern = xMatcherDetails.getPredefined();
-                YamlContract.PredefinedRegex asd = YamlContract.PredefinedRegex.valueOf(pattern);
-                pattern = predefinedToPattern(asd).pattern();
-            }
+        if(isRegex.test(xMatcherDetails)) {
+            String pattern = isPredefined.test(xMatcherDetails) ? returnPattern(xMatcherDetails.getPredefined()) : xMatcherDetails.getValue();
             Generex generex = new Generex(pattern);
             dslProperty = $.value($.c($.regex(xMatcherDetails.getValue())),$.p(generex.random(5,10)));
+        }
+        if(dslProperty !=null) {
+            headers.header(xMatcherDetails.getName(), dslProperty);
+        }
+
+    }
+
+    //If content type is not specified then application/json is taken.
+    private static void createResponseHeader(XMatcherDetails xMatcherDetails,Headers headers){
+        log.info("--->{} ",xMatcherDetails);
+        DslProperty dslProperty = null ;
+        if(isRegex.test(xMatcherDetails)) {
+            String pattern = isPredefined.test(xMatcherDetails) ? returnPattern(xMatcherDetails.getPredefined()) : xMatcherDetails.getValue();
+            Generex generex = new Generex(pattern);
+            dslProperty = $.value($.c(generex.random(5,10)),$.p($.regex(xMatcherDetails.getValue())));
         }
         if(dslProperty !=null) {
             headers.header(xMatcherDetails.getName(), dslProperty);

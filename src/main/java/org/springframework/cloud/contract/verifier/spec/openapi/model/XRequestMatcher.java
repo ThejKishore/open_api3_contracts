@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -16,29 +17,14 @@ public class XRequestMatcher extends XMatcher{
     Set<XMatcherDetails> xRequestParams;
     Set<XMatcherDetails> xpathParams;
 
-
-    public void addRequestParamMatcher(XMatcherDetails xMatcherDetails){
-        if(xRequestParams == null) {
-            xRequestParams = new HashSet<>();
-        }
-        xRequestParams.add(xMatcherDetails);
-    }
-
-    public void addRequestParamMatchers(Set<XMatcherDetails> xMatcherDetails){
+    public void addRequestParamMatchers(Collection<XMatcherDetails> xMatcherDetails){
         if(xRequestParams == null) {
             xRequestParams = new HashSet<>();
         }
         xRequestParams.addAll(xMatcherDetails);
     }
 
-    public void addPathParamMatcher(XMatcherDetails xMatcherDetails){
-        if(xpathParams == null) {
-            xpathParams = new HashSet<>();
-        }
-        xpathParams.add(xMatcherDetails);
-    }
-
-    public void addPathParamMatchers(Set<XMatcherDetails> xMatcherDetails){
+    public void addPathParamMatchers(Collection<XMatcherDetails> xMatcherDetails){
         if(xpathParams == null) {
             xpathParams = new HashSet<>();
         }

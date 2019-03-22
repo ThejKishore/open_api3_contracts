@@ -67,6 +67,13 @@
             <scope>compile</scope>
             <!-- apache license -->
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.reprezen.kaizen/openapi-parser -->
+        <!--<dependency>
+            <groupId>com.reprezen.kaizen</groupId>
+            <artifactId>openapi-parser</artifactId>
+            <version>4.0.3</version>
+            <scope>compile</scope>
+        </dependency>-->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

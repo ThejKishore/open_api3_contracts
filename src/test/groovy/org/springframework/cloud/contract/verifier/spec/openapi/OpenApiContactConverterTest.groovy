@@ -245,7 +245,7 @@ class OpenApiContactConverterTest extends Specification {
     }
 
 
-    @Ignore
+//    @Ignore
     def "actual security contract "() {
         given:
         Contract contract = Contract.make {

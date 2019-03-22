@@ -8,10 +8,12 @@ import io.swagger.v3.oas.models.responses.ApiResponses;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.*;
+import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 @Slf4j
@@ -40,8 +42,9 @@ public class XContractHelper {
     public static final Predicate<Map.Entry<String, ApiResponse>> isExtensionAvailableForResponseValue = r -> r.getValue().getExtensions() !=null && r.getValue().getExtensions().get(X_CONTRACTS) !=null;
     public static final Predicate<ApiResponses> isResponseEntrySetAvailable = apiResponses ->  apiResponses.entrySet()!=null;
     public static final Predicate<Operation> isExtensionAvailableInOperation= o -> o.getExtensions() !=null && o.getExtensions().get(X_CONTRACTS) != null;
-    private static final Predicate<Object> isValidObject = s -> (s!=null && !s.toString().trim().isEmpty());
-    private static final Predicate<String> isValidString = s -> (s!=null && !s.trim().isEmpty());
+
+    private static final Predicate<Object> isValidObject = s -> !ObjectUtils.isEmpty(s);
+    private static final Predicate<String> isValidString = s -> !ObjectUtils.isEmpty(s);
 
 
 
@@ -71,25 +74,23 @@ public class XContractHelper {
             xContract.setXRequestMatcher(XRequestMatcher.builder()
                     .build());
         }
-        List<XMatcherDetails> xBodyMatcherDetails = (List<XMatcherDetails>)((List) ((LinkedHashMap<String, Object>) data.get(MATCHERS)).get(BODY)).stream()
-                .filter(isBodyParam)
-                .map(data1 -> XContractHelper.getXMatcherDetails((LinkedHashMap<String, String>) data1))
-                .collect(Collectors.toList());
-        xContract.getXRequestMatcher().addPathParamMatchers(collectMatcherDetails(data, BODY, isPathParam));
-        xContract.getXRequestMatcher().addRequestParamMatchers(collectMatcherDetails(data, BODY, isRequestParam));
-        xContract.getXRequestMatcher().addHeaderMatchers(collectMatcherDetails(data, BODY, isHeaderParam));
-        xContract.getXRequestMatcher().setXbody(xBodyMatcherDetails);
+        extractRequestMatcherDetails(data, xContract);
     }
 
 
     public static Predicate isPathParam =  map -> isPathParam((Map<String,String>) map);
     public static Predicate isHeaderParam =  map -> isHeaderParam((Map<String,String>) map);
     public static Predicate isRequestParam =  map -> isRequestParam((Map<String,String>) map);
-    public static Predicate isBodyParam = isPathParam.and(isHeaderParam).and(isRequestParam).negate();
+    public static Predicate isBodyParam = map -> isBodyParam((Map<String,String>) map);
 
     private static boolean isPathParam(Map<String,String> map){
         String inType = map.get(IN);
         return inType !=null && !inType.trim().isEmpty() && inType.equals(PATH);
+    }
+
+    private static boolean isBodyParam(Map<String,String> map){
+        String inType = map.get(IN);
+        return inType !=null && !inType.trim().isEmpty() && inType.equals(BODY);
     }
 
     private static boolean isHeaderParam(Map<String,String> map){
@@ -129,16 +130,43 @@ public class XContractHelper {
             xContract.setXRequestMatcher(XRequestMatcher.builder()
                     .build());
         }
+        extractRequestMatcherDetails(params, xContract);
+    }
+
+    private static void extractRequestMatcherDetails(LinkedHashMap<String, Object> params, XContract xContract) {
+        //An X-Contract details can set in any place within body , parameters , header ,cookie
+
+        xContract.getXRequestMatcher().addBodyMatchers(collectMatcherDetails(params, BODY, isBodyParam));
+        xContract.getXRequestMatcher().addBodyMatchers(collectMatcherDetails(params, PARAMATERS, isBodyParam));
+        xContract.getXRequestMatcher().addBodyMatchers(collectMatcherDetails(params, HEADER, isBodyParam));
+
+
+        xContract.getXRequestMatcher().addPathParamMatchers(collectMatcherDetails(params, BODY, isPathParam));
         xContract.getXRequestMatcher().addPathParamMatchers(collectMatcherDetails(params, PARAMATERS, isPathParam));
+        xContract.getXRequestMatcher().addPathParamMatchers(collectMatcherDetails(params, HEADER, isPathParam));
+
+        xContract.getXRequestMatcher().addRequestParamMatchers(collectMatcherDetails(params, BODY, isRequestParam));
         xContract.getXRequestMatcher().addRequestParamMatchers(collectMatcherDetails(params, PARAMATERS, isRequestParam));
+        xContract.getXRequestMatcher().addRequestParamMatchers(collectMatcherDetails(params, HEADER, isRequestParam));
+
+        xContract.getXRequestMatcher().addHeaderMatchers(collectMatcherDetails(params, BODY, isHeaderParam));
         xContract.getXRequestMatcher().addHeaderMatchers(collectMatcherDetails(params, PARAMATERS, isHeaderParam));
+        xContract.getXRequestMatcher().addHeaderMatchers(collectMatcherDetails(params, HEADER, isHeaderParam));
     }
 
 
+    private static Stream isRequestMatcherAvailable(LinkedHashMap<String, Object> params, String paramaters){
+        Object data =((LinkedHashMap<String, Object>) params.get(MATCHERS)).get(paramaters) ;
+        if(data instanceof  List){
+            return ((List) data).stream();
+        }else{
+            return Stream.empty();
+        }
+    }
 
-    private static Set<XMatcherDetails> collectMatcherDetails(LinkedHashMap<String, Object> params, String paramaters, Predicate isRequestParam) {
-        return (Set<XMatcherDetails>) ((List) ((LinkedHashMap<String, Object>) params.get(MATCHERS)).get(paramaters)).stream()
-                .filter(isRequestParam)
+    private static Collection<XMatcherDetails> collectMatcherDetails(LinkedHashMap<String, Object> params, String paramaters, Predicate predicate) {
+        return (Collection<XMatcherDetails>) isRequestMatcherAvailable(params,paramaters)
+                .filter(predicate)
                 .map(data1 -> XContractHelper.getXMatcherDetails((LinkedHashMap<String, String>) data1))
                 .collect(Collectors.toSet());
     }
@@ -153,11 +181,12 @@ public class XContractHelper {
                     .build());
         }
 
-        List<XMatcherDetails> xMatcherDetails = (List<XMatcherDetails>)((List) ((LinkedHashMap<String, Object>) data.get(MATCHERS)).get(BODY)).stream()
-                .map(data1 -> XContractHelper.getXMatcherDetails((LinkedHashMap<String, String>) data1))
-                .collect(Collectors.toList());
+        xContract.getXResponseMatcher().addBodyMatchers(collectMatcherDetails(data, BODY, isBodyParam));
+        xContract.getXResponseMatcher().addBodyMatchers(collectMatcherDetails(data, HEADER, isBodyParam));
 
-        xContract.getXResponseMatcher().setXbody(xMatcherDetails);
         xContract.getXResponseMatcher().addHeaderMatchers(collectMatcherDetails(data, BODY, isHeaderParam));
+        xContract.getXResponseMatcher().addHeaderMatchers(collectMatcherDetails(data, HEADER, isHeaderParam));
+
+
     }
 }

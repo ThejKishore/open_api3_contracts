@@ -13,6 +13,7 @@ paths:
         - contractId: 8
           name: get access token for posted form data
           priority: 1
+          method: post
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -50,11 +51,19 @@ paths:
               body:
                 - path: $.['grant_type']
                   type: by_regex
+                  in: body
                   predefined: non_empty
                 - path: $.['username']
+                  in: body
                   type: by_regex
                   predefined: non_empty
                 - path: $.['password']
+                  in: body
+                  type: by_regex
+                  predefined: non_empty
+              paramaters:
+                - name: Authorization
+                  in: header
                   type: by_regex
                   predefined: non_empty
 
@@ -102,6 +111,7 @@ paths:
                     type: string
           x-contracts:
             - contractId: 8
+              status: 200
               body:
                 access_token: "access_token"
                 token_type: "token_type"
@@ -115,21 +125,27 @@ paths:
                 body:
                   - path: $.['access_token']
                     type: by_regex
+                    in: body
                     predefined: non_empty
                   - path: $.['token_type']
                     type: by_regex
+                    in: body
                     predefined: non_empty
                   - path: $.['expires_in']
                     type: by_regex
+                    in: body
                     predefined: number
                   - path: $.['refresh_token']
                     type: by_regex
+                    in: body
                     predefined: non_empty
                   - path: $.['account_id']
                     type: by_regex
+                    in: body
                     predefined: non_empty
                   - path: $.['account_href']
                     type: by_regex
+                    in: body
                     predefined: non_empty
 
   /samlToken:
@@ -140,6 +156,7 @@ paths:
         - contractId: 9
           name: get access token for posted saml form data
           priority: 1
+          method: post
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -161,12 +178,15 @@ paths:
               body:
                 - path: $.['grant_type']
                   type: by_regex
+                  in: body
                   predefined: non_empty
                 - path: $.['username']
                   type: by_regex
+                  in: body
                   predefined: non_empty
                 - path: $.['password']
                   type: by_regex
+                  in: body
                   predefined: non_empty
       parameters:
         - name: Authorization
@@ -176,6 +196,14 @@ paths:
           schema:
             type: string
             default: "something.somethign"
+          x-contracts:
+            - contractId: 8
+              matchers:
+                body:
+                  - path: $.['refresh_token']
+                    type: by_regex
+                    predefined: non_empty
+                    in: body
         - name: X-CLIENT-MODE
           in: header
           description: authorization jwt token
@@ -205,6 +233,7 @@ paths:
                     type: string
           x-contracts:
             - contractId: 9
+              status: 200
               body:
                 access_token: "sdsdsd"
                 token_type: "client_credentials"
@@ -218,19 +247,30 @@ paths:
                 body:
                   - path: $.['access_token']
                     type: by_regex
+                    in: body
                     predefined: non_empty
                   - path: $.['token_type']
                     type: by_regex
+                    in: body
                     predefined: non_empty
                   - path: $.['expires_in']
                     type: by_regex
+                    in: body
                     predefined: number
                   - path: $.['refresh_token']
                     type: by_regex
+                    in: body
                     predefined: non_empty
                   - path: $.['account_id']
                     type: by_regex
+                    in: body
                     predefined: non_empty
                   - path: $.['account_href']
                     type: by_regex
+                    in: body
+                    predefined: non_empty
+                header:
+                  - name: content-type
+                    type: by_regex
+                    in: header
                     predefined: non_empty

@@ -1,12 +1,11 @@
 package org.springframework.cloud.contract.verifier.spec.openapi.model;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -39,21 +38,22 @@ import java.util.Set;
 @NoArgsConstructor
 public class XMatcher {
 
-    List<XMatcherDetails> xbody;
+    Set<XMatcherDetails> xbody;
     Set<XMatcherDetails> xheader;
 
-    public void addHeaderMatcher(XMatcherDetails xMatcherDetails){
-        if(xheader == null) {
-            xheader = new HashSet<>();
-        }
-        xheader.add(xMatcherDetails);
-    }
 
-    public void addHeaderMatchers(Set<XMatcherDetails> xMatcherDetails){
+    public void addHeaderMatchers(Collection<XMatcherDetails> xMatcherDetails){
         if(xheader == null) {
             xheader = new HashSet<>();
         }
         xheader.addAll(xMatcherDetails);
+    }
+
+    public void addBodyMatchers(Collection<XMatcherDetails> xMatcherDetails){
+        if(xbody == null) {
+            xbody = new HashSet<>();
+        }
+        xbody.addAll(xMatcherDetails);
     }
 
 }

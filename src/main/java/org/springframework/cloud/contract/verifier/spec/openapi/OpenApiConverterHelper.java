@@ -41,41 +41,50 @@ public class OpenApiConverterHelper {
      * **/
 
     @SneakyThrows
-    public List<Contract> fromFile(File file){
+    public void fromFile(File file){
 //        List<Contract> contracts = new ArrayList<>();
         OpenAPI spec = new OpenAPIV3Parser().read(file.getPath());
 
 //        log.info(" spec {} ", jsonObjectWriter.writeValueAsString(spec));
 
         //[extract:start:XContracts]
+        HashMap<String, XContract> xContracts = getStringXContractHashMap(spec);
+
+        //[extract:end:XContracts]
+
+        //[create:start:CloudContracts]
+        //todo
+//        List<Contract> contracts = createCloudContracts(xContracts,spec);
+
+        //[create:end:CloudContracts]
+
+//        log.info("{}  " , jsonObjectWriter.writeValueAsString(xContracts));
+//        return contracts;
+    }
+
+    public HashMap<String, XContract> getStringXContractHashMap(OpenAPI spec) {
         HashMap<String,XContract> xContracts = getInitialXContract(spec);
         getXContractRequestBody(spec, xContracts);
         getXContractRequestParams(spec,xContracts);
         getXContractResponseBody(spec,xContracts);
         xContracts.entrySet().stream()
                 .forEach(key -> setGenericContactDetails(spec, key.getKey(),key.getValue()));
-        //[extract:end:XContracts]
 
-        //[create:start:CloudContracts]
-        //todo
-        List<Contract> contracts = createCloudContracts(xContracts);
-
-        //[create:end:CloudContracts]
-
-//        log.info("{}  " , jsonObjectWriter.writeValueAsString(xContracts));
-        return contracts;
+        return xContracts;
     }
 
-    private List<Contract> createCloudContracts(Map<String,XContract> xContractMap){
+    private List<Contract> createCloudContracts(Map<String,XContract> xContractMap,OpenAPI openAPI){
         List<Contract> cloudGroovyContract = xContractMap.entrySet().stream()
-                .map(entry -> GroovyContractConvertor.convertXContractToGroovyContract(entry.getValue()))
+                .map(entry -> GroovyContractConvertor.convertXContractToGroovyContract(entry.getValue(),openAPI))
                 .collect(Collectors.toList());
         return cloudGroovyContract;
     }
 
+    @SneakyThrows
     private void setGenericContactDetails(OpenAPI spec, String key,XContract contract) {
         setXRequestPathToXContract(spec,key,contract);
         setXResponseToXContract(spec,key,contract);
+        log.info("xcontract  --- {}",jsonObjectWriter.writeValueAsString(contract));
     }
 
     private void setXResponseToXContract(OpenAPI spec, String key,XContract contract) {
@@ -201,7 +210,7 @@ public class OpenApiConverterHelper {
      * @param spec {@link OpenAPI}
      * @return  xContracts {@link HashMap<String,XContract>}
      */
-    private HashMap<String, XContract> getInitialXContract(OpenAPI spec) {
+    public HashMap<String, XContract> getInitialXContract(OpenAPI spec) {
         return (HashMap<String, XContract>)getOperationsFromAGivenSpec(spec)
                 .filter(isExtensionAvailableInOperation)
                 .map(operation -> ((ArrayList) operation.getExtensions().get(X_CONTRACTS)))
@@ -216,19 +225,18 @@ public class OpenApiConverterHelper {
      * @return {@link Stream<Operation>}
      */
     private Stream<Operation>  getOperationsFromAGivenSpec(OpenAPI spec){
-        Stream<Operation> value = spec.getPaths().entrySet().stream()
+        //dont assign the stream to variable and consume the stream before returning
+        return spec.getPaths().entrySet().stream()
                 .filter(entry -> entry.getValue() != null)
                 .map(entry -> entry.getValue().readOperations())
                 .flatMap(operations -> operations.stream());
-
-        return value;
     }
 
     @SneakyThrows
     public static void main(String[] args) {
 //        URL securityUrl = OpenApiConverterHelper.class.getResource("/openapi/fraudservice.yaml");
-//        URL securityUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_security.yaml");
-        URL securityUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_address.yml");
+        URL securityUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_security.yaml");
+//        URL securityUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_address.yml");
         File securityApiFile = new File(securityUrl.toURI());
 
         OpenApiConverterHelper openApiConverterHelper = new OpenApiConverterHelper();
