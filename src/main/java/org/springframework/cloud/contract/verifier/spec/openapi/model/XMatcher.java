@@ -4,9 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 /**
  *  * 	Matcher
@@ -38,22 +36,22 @@ import java.util.Set;
 @NoArgsConstructor
 public class XMatcher {
 
-    Set<XMatcherDetails> xbody;
-    Set<XMatcherDetails> xheader;
+    Map<String,XMatcherDetails> xbody;
+    Map<String,XMatcherDetails> xheader;
 
 
-    public void addHeaderMatchers(Collection<XMatcherDetails> xMatcherDetails){
+    public void addHeaderMatchers(Map<String,XMatcherDetails> xMatcherDetails){
         if(xheader == null) {
-            xheader = new HashSet<>();
+            xheader = new HashMap<>();
         }
-        xheader.addAll(xMatcherDetails);
+        xheader.putAll(xMatcherDetails);
     }
 
-    public void addBodyMatchers(Collection<XMatcherDetails> xMatcherDetails){
+    public void addBodyMatchers(Map<String,XMatcherDetails> xMatcherDetails){
         if(xbody == null) {
-            xbody = new HashSet<>();
+            xbody = new HashMap<>();
         }
-        xbody.addAll(xMatcherDetails);
+        xbody.putAll(xMatcherDetails);
     }
 
 }

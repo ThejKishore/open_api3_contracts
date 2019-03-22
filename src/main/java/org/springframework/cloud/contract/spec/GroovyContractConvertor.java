@@ -82,8 +82,8 @@ public class GroovyContractConvertor {
         //add the request header
 
         Headers headers = new Headers();
-        contract.getXRequestMatcher().getXheader().stream()
-                .forEach(headerData -> createRequestHeader(headerData,headers));
+        contract.getXRequestMatcher().getXheader().entrySet().stream()
+                .forEach(headerData -> createRequestHeader(headerData.getValue(),headers));
         request.setHeaders(headers);
 
 
@@ -102,8 +102,8 @@ public class GroovyContractConvertor {
 
 
         Headers responseHeaders = new Headers();
-        contract.getXResponseMatcher().getXheader().stream()
-                .forEach(headerData -> createResponseHeader(headerData,responseHeaders));
+        contract.getXResponseMatcher().getXheader().entrySet().stream()
+                .forEach(headerData -> createResponseHeader(headerData.getValue(),responseHeaders));
         response.setHeaders(responseHeaders);
 
 
@@ -122,7 +122,7 @@ public class GroovyContractConvertor {
 
     static Pattern urlValue= Pattern.compile("(\\{[a-z,A-Z]+\\})");
 
-    private static DslProperty urlPathCreation(String urlPath , Set<XMatcherDetails> xMatcherDetails){
+    private static DslProperty urlPathCreation(String urlPath , Map<String,XMatcherDetails> xMatcherDetails){
         if(urlPath.contains("{")&&urlPath.contains("}")){
             //create Server side
             String serverUrlPath = replaceUrlPathVariablesWithValues(createValueAndSet(xMatcherDetails),urlPath);
@@ -150,14 +150,14 @@ public class GroovyContractConvertor {
         return url;
     }
 
-    private static Map<String,String> createValueAndSet(Collection<XMatcherDetails> xMatcherDetails){
-        return xMatcherDetails.stream()
+    private static Map<String,String> createValueAndSet(Map<String,XMatcherDetails> xMatcherDetails){
+        return xMatcherDetails.entrySet().stream()
                 .map(GroovyContractConvertor::createValueForRegex)
                 .collect(Collectors.toMap(d -> d.getA(),d-> d.getB()));
     }
 
-    private static Map<String,String> createValueAndSetRegex(Collection<XMatcherDetails> xMatcherDetails){
-        return xMatcherDetails.stream()
+    private static Map<String,String> createValueAndSetRegex(Map<String,XMatcherDetails> xMatcherDetails){
+        return xMatcherDetails.entrySet().stream()
                 .map(GroovyContractConvertor::assignRegexToKey)
                 .collect(Collectors.toMap(d -> d.getA(),d-> d.getB()));
     }
@@ -168,19 +168,19 @@ public class GroovyContractConvertor {
 
 
 
-    private static Tuple<String,String> assignRegexToKey(XMatcherDetails xMatcherDetails){
-        String key = isJsonPath.test(xMatcherDetails) ? xMatcherDetails.getJsonPath() : xMatcherDetails.getName();
-        return Tuple.<String,String>builder().a(key).b(xMatcherDetails.getValue()).build();
+    private static Tuple<String,String> assignRegexToKey(Map.Entry<String,XMatcherDetails> xMatcherDetails){
+        String key = isJsonPath.test(xMatcherDetails.getValue()) ? xMatcherDetails.getValue().getJsonPath() : xMatcherDetails.getValue().getName();
+        return Tuple.<String,String>builder().a(key).b(xMatcherDetails.getValue().getValue()).build();
     }
 
-    private static Tuple<String,String> createValueForRegex(XMatcherDetails xMatcherDetails){
-        String key = isJsonPath.test(xMatcherDetails) ? xMatcherDetails.getJsonPath() : xMatcherDetails.getName();
-        if(isRegex.test(xMatcherDetails) ) {
-            String regex = isPredefined.test(xMatcherDetails) ? returnPattern(xMatcherDetails.getPredefined()) : xMatcherDetails.getValue();
+    private static Tuple<String,String> createValueForRegex(Map.Entry<String,XMatcherDetails> xMatcherDetails){
+        String key = isJsonPath.test(xMatcherDetails.getValue()) ? xMatcherDetails.getValue().getJsonPath() : xMatcherDetails.getValue().getName();
+        if(isRegex.test(xMatcherDetails.getValue()) ) {
+            String regex = isPredefined.test(xMatcherDetails.getValue()) ? returnPattern(xMatcherDetails.getValue().getPredefined()) : xMatcherDetails.getValue().getValue();
             Generex generex = new Generex(regex);
             return Tuple.<String,String>builder().a(key).b(generex.random(5,10)).build();
         }else{
-            return Tuple.<String,String>builder().a(key).b(xMatcherDetails.getValue()).build();
+            return Tuple.<String,String>builder().a(key).b(xMatcherDetails.getValue().getValue()).build();
         }
 
     }

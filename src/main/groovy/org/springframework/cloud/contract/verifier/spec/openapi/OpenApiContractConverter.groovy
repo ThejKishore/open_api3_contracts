@@ -233,7 +233,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                             if (openApiParam.in == 'header') {
                                                                 headers {
                                                                     log.info(" --- inside ---param --- header ")
-                                                                    log.info(" -header --{} ",map.get(contractId.toString()).XRequestMatcher.XHeader)
+                                                                    log.info(" -header --{} ",map.get(contractId.toString()).XRequestMatcher.xheader[openApiParam.name])
                                                                     header(openApiParam.name, contractParam.default)
                                                                 }
                                                             }

@@ -104,19 +104,22 @@ public class XContractHelper {
     }
 
 
-    public static XMatcherDetails getXMatcherDetails(LinkedHashMap<String,String> data){
+    public static Tuple<String,XMatcherDetails> getXMatcherDetails(LinkedHashMap<String,String> data){
         String name = getValue(data, NAME);
         String path = getValue(data, PATH);
         String type = getValue(data, TYPE);
         String predefined = getValue(data, PREDEFINED);
         String value = getValue(data, VALUE);
-        return  XMatcherDetails.builder()
+
+        String key = isValidString.test(name) ? name :  path;
+
+        return new Tuple<>(key,XMatcherDetails.builder()
                 .name(name)
                 .jsonPath(path)
                 .type(type)
                 .predefined(predefined)
                 .value(value)
-                .build();
+                .build());
     }
 
     private static String getValue(LinkedHashMap<String, String> data, String name) {
@@ -164,11 +167,11 @@ public class XContractHelper {
         }
     }
 
-    private static Collection<XMatcherDetails> collectMatcherDetails(LinkedHashMap<String, Object> params, String paramaters, Predicate predicate) {
-        return (Collection<XMatcherDetails>) isRequestMatcherAvailable(params,paramaters)
+    private static Map<String,XMatcherDetails> collectMatcherDetails(LinkedHashMap<String, Object> params, String paramaters, Predicate predicate) {
+        return (Map<String,XMatcherDetails>) isRequestMatcherAvailable(params,paramaters)
                 .filter(predicate)
                 .map(data1 -> XContractHelper.getXMatcherDetails((LinkedHashMap<String, String>) data1))
-                .collect(Collectors.toSet());
+                .collect(Collectors.toMap(t -> ((Tuple<String,XMatcherDetails>) t).getA() , t -> ((Tuple<String,XMatcherDetails>) t).getB() ));
     }
 
     public static void fromLinkedHashMapContractResponseBody(LinkedHashMap<String, Object> data, HashMap<String, XContract> xContracts) {
