@@ -81,6 +81,7 @@ class OpenApiContactConverterTest extends Specification {
 
     }
 
+    @Ignore
     def "ConvertFrom - should not go boom"() {
         given:
         File file = new File('src/test/resources/openapi/openapi.yml')
@@ -96,8 +97,8 @@ class OpenApiContactConverterTest extends Specification {
 
     }
 
-
-   /* def "Test Yaml Contract"() {
+    @Ignore
+    def "Test Yaml Contract"() {
         given:
         Contract yamlContract = yamlContractConverter.convertFrom(contractFile).first()
         Collection<Contract> oa3Contract = contactConverter.convertFrom(contractOA3File)
@@ -119,8 +120,9 @@ class OpenApiContactConverterTest extends Specification {
         yamlContract.response.bodyMatchers == openApiContract.response.bodyMatchers
         yamlContract == openApiContract
 
-    }*/
+    }
 
+    @Ignore
     def "test OA3 Fraud Yml"() {
         given:
         Collection<Contract> oa3Contract = contactConverter.convertFrom(fraudApiFile)
@@ -134,6 +136,7 @@ class OpenApiContactConverterTest extends Specification {
 
     }
 
+    @Ignore
     def "Test parse of test path"() {
         given:
         Collection<Contract> oa3Contract = contactConverter.convertFrom(contractOA3FilePath)
@@ -146,6 +149,7 @@ class OpenApiContactConverterTest extends Specification {
         contract.getRequest().url.clientValue.equals("/foo1")
     }
 
+    @Ignore
     def "Test Parse of Payor example contracts"() {
 
         given:
@@ -158,6 +162,7 @@ class OpenApiContactConverterTest extends Specification {
         contract
     }
 
+    @Ignore
     def "Test Parse of Velo Contracts"() {
 
         given:
@@ -245,7 +250,7 @@ class OpenApiContactConverterTest extends Specification {
     }
 
 
-//    @Ignore
+    @Ignore
     def "actual security contract "() {
         given:
         Contract contract = Contract.make {
@@ -254,11 +259,17 @@ class OpenApiContactConverterTest extends Specification {
             request {
                 headers {
                     header(contentType() , containing(applicationFormUrlencoded()))
-//                    header(authorization(), "something.somethign")
+                    header(authorization(), value(c(regex(nonEmpty())), p("Basic [B@15b56bb) ")))
 //                    header("X-CLIENT-MODE", "something.somethign")
 //                    header("X-GUEST-ACCOUNT-ID", "something.somethign")
                 }
-                url "/token"
+                url ("/token"){
+//                    queryParameters {
+//                        headers {
+//                            header(authorization(), value(c(regex(nonEmpty())), p("Basic [B@15b56bb) ")))
+//                        }
+//                    }
+                }
                 method POST()
                 body([
                         grant_type:"client_credentials",
@@ -266,6 +277,7 @@ class OpenApiContactConverterTest extends Specification {
                         password:"password"
 
                 ])
+
                 bodyMatchers {
                     jsonPath('$.grant_type',byRegex(nonEmpty()))
                     jsonPath('$.username',byRegex(nonEmpty()))
@@ -295,7 +307,9 @@ class OpenApiContactConverterTest extends Specification {
         def yamlContract =  objectMapper.writeValueAsString( addressContracts[0] )
 
         then:
+//        groovyContract /*== yamlContract*/
         groovyContract == yamlContract
+//        println(groovyContract)
     }
 
 

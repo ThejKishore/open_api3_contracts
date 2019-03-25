@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.contract.spec.Contract;
 import org.springframework.cloud.contract.spec.GroovyContractConvertor;
 import org.springframework.cloud.contract.verifier.spec.openapi.helper.XContractHelper;
-import org.springframework.cloud.contract.verifier.spec.openapi.model.Tuple;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XContract;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XMethod;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XRequestPath;
@@ -38,6 +37,8 @@ public class OpenApiConverterHelper {
     /**
      *
      * https://github.com/json-path/JsonPath
+     * http://dius.github.io/java-faker/
+     *
      * **/
 
     @SneakyThrows

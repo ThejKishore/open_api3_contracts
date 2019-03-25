@@ -13,7 +13,6 @@ paths:
         - contractId: 8
           name: get access token for posted form data
           priority: 1
-          method: post
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -66,7 +65,11 @@ paths:
                   in: header
                   type: by_regex
                   predefined: non_empty
-
+            paramaters:
+              - name: Authorization
+                in: header
+                type: by_type
+                value: "Basic csc_user:jcpenney2017"
       parameters:
         - name: Authorization
           in: header
@@ -111,7 +114,6 @@ paths:
                     type: string
           x-contracts:
             - contractId: 8
-              status: 200
               body:
                 access_token: "access_token"
                 token_type: "token_type"
@@ -156,7 +158,6 @@ paths:
         - contractId: 9
           name: get access token for posted saml form data
           priority: 1
-          method: post
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -188,6 +189,11 @@ paths:
                   type: by_regex
                   in: body
                   predefined: non_empty
+              header:
+                - path: Authorization
+                  type: byregex
+                  predefined: non_empty
+                  value: 'Basic csc_user:password'
       parameters:
         - name: Authorization
           in: header
@@ -233,7 +239,6 @@ paths:
                     type: string
           x-contracts:
             - contractId: 9
-              status: 200
               body:
                 access_token: "sdsdsd"
                 token_type: "client_credentials"

@@ -4,11 +4,11 @@
 
     <groupId>guru.springframework</groupId>
     <artifactId>spring-cloud-contract-oa3</artifactId>
-    <version>2.0.2.11-SNAPSHOT</version>
+    <version>2.0.2.12-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>spring-cloud-contract-oa3</name>
-    <description>Spring Cloud Contract OpenAPI 3.0</description>
+    <description>Spring Cloud Contract OpenAPI 3.0 with header value</description>
 
     <url>https://github.com/springframeworkguru/spring-cloud-contract-oa3</url>
 
@@ -200,7 +200,7 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
+           <!-- <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.0.1</version>
@@ -212,7 +212,7 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
+            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>

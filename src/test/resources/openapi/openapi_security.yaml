@@ -66,7 +66,11 @@ paths:
                   in: header
                   type: by_regex
                   predefined: non_empty
-
+            paramaters:
+              - name: Authorization
+                in: header
+                type: by_type
+                value: "Basic csc_user:jcpenney2017"
       parameters:
         - name: Authorization
           in: header
@@ -188,6 +192,11 @@ paths:
                   type: by_regex
                   in: body
                   predefined: non_empty
+              header:
+                - path: Authorization
+                  type: byregex
+                  predefined: non_empty
+                  value: 'Basic csc_user:password'
       parameters:
         - name: Authorization
           in: header

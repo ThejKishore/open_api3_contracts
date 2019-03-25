@@ -2,7 +2,6 @@ package org.springframework.cloud.contract.verifier.spec.openapi
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.ObjectWriter
-import com.mifmif.common.regex.Generex
 import groovy.util.logging.Slf4j
 import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.oas.models.media.MediaType
@@ -10,11 +9,9 @@ import io.swagger.v3.parser.OpenAPIV3Parser
 import org.apache.commons.lang3.StringUtils
 import org.springframework.cloud.contract.spec.Contract
 import org.springframework.cloud.contract.spec.ContractConverter
-import org.springframework.cloud.contract.spec.internal.DslProperty
-import org.springframework.cloud.contract.spec.internal.ExecutionProperty
-import org.springframework.cloud.contract.spec.internal.MatchingTypeValue
-import org.springframework.cloud.contract.spec.internal.RegexPatterns
+import org.springframework.cloud.contract.spec.internal.*
 import org.springframework.cloud.contract.verifier.converter.YamlContract
+import org.springframework.cloud.contract.verifier.spec.openapi.helper.DataGeneratorHelper
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XContract
 
 import java.util.regex.Pattern
@@ -142,7 +139,9 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                         def contractId = openApiContract.contractId
                         log.info(" {} {} ",contractId ,contractId.getClass().name)
 
-                        log.info(" xcontract {} ",jsonObjectWriter.writeValueAsString(map[contractId.toString()]))
+                        XContract xContract = map[contractId.toString()]
+
+                        log.info(" xcontract {} ",jsonObjectWriter.writeValueAsString(xContract))
 
                         def contractPath = (StringUtils.isEmpty(openApiContract.contractPath)) ? path : openApiContract.contractPath
 
@@ -177,8 +176,8 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                         } else if (pathItem?.patch.is(operation)) {
                                             method("PATCH")
                                         }
+                                        def headerList=[]
                                         if (operation?.parameters) {
-
                                             boolean isPathBoolean = false
                                             String consumerExposedPath = new String(contractPath)
                                             String produceExposedPath = new String(contractPath)
@@ -199,13 +198,26 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                     queryParameters {
                                                         operation?.parameters?.each { openApiParam ->
                                                             if (openApiParam.in == 'header') {
-                                                                headers {
+//                                                                headers {
                                                                     log.info(" --- inside ---param --- header ")
-                                                                    header(openApiParam.name, contractParam.default)
-                                                                }
+                                                                    log.info(" -header --{} ",xContract.XRequestMatcher.xheader[openApiParam.name])
+                                                                    def xheader = xContract.XRequestMatcher.xheader[openApiParam.name]
+                                                                    String regexval = xheader?.value?:"[0-9a-zA-Z]{10}"
+                                                                    if(openApiParam.name == "Authorization") {
+                                                                        headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())), p(DataGeneratorHelper.generateBasicAuthCode()))))
+                                                                    } else {
+                                                                        headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval)))))
+                                                                    }
+//                                                                }
                                                             }
-
-                                                            /*openApiParam?.extensions?."x-contracts".each { contractParam ->
+                                                            if (openApiParam.in == 'query') {
+//                                                                log.info(" --- inside ---param --- query ")
+                                                                def xquery = xContract.XRequestMatcher.XRequestParams[openApiParam.name]
+//                                                                log.info(" -query --{} ",query)
+                                                                String regexval = xquery?.value?:"[0-9a-zA-Z]{10}"
+                                                                parameter(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval))))
+                                                            }
+                                                           /* openApiParam?.extensions?."x-contracts".each { contractParam ->
                                                                 if (contractParam.contractId == contractId) {
                                                                     if (openApiParam.in == 'query') {
                                                                         parameter(openApiParam.name, contractParam.default)
@@ -227,21 +239,36 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                     }
                                                 }
                                             } else{
+
                                                 url(contractPath) {
                                                     queryParameters {
                                                         operation?.parameters?.each { openApiParam ->
                                                             if (openApiParam.in == 'header') {
-                                                                headers {
-                                                                    log.info(" --- inside ---param --- header ")
-                                                                    log.info(" -header --{} ",map.get(contractId.toString()).XRequestMatcher.xheader[openApiParam.name])
-                                                                    header(openApiParam.name, contractParam.default)
-                                                                }
+                                                                log.info(" --- inside ---param --- header ")
+                                                                log.info(" -header --{} ",xContract.XRequestMatcher.xheader[openApiParam.name])
+                                                                def xheader = xContract.XRequestMatcher.xheader[openApiParam.name]
+                                                                def regexval = xheader?.value?:"[0-9a-zA-Z]{10}"
+                                                                log.info(" regexval {} ",regexval)
+//                                                                headers {
+                                                                    if(openApiParam.name == "Authorization") {
+                                                                       headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())), p(DataGeneratorHelper.generateBasicAuthCode()))))
+                                                                    } else {
+                                                                        headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval)))))
+                                                                    }
+//                                                                }
                                                             }
+                                                            if (openApiParam.in == 'query') {
+                                                                log.info(" --- inside ---param --- query ")
+                                                                def xquery = xContract.XRequestMatcher.XRequestParams[openApiParam.name]
+                                                                log.info(" -query --{} ",query)
+                                                                def regexval = xquery?.value?:"[0-9a-zA-Z]{10}"
+                                                                parameter(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval))))
+                                                            }
+
                                                             /*openApiParam?.extensions?."x-contracts".each { contractParam ->
                                                                 if (contractParam.contractId == contractId) {
-                                                                    if (openApiParam.in == 'query') {
-                                                                        parameter(openApiParam.name, contractParam.default)
-                                                                    }
+
+
                                                                     if (openApiParam.in == 'header') {
                                                                         headers {
                                                                             header(openApiParam.name, contractParam.default)
@@ -266,12 +293,14 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                             if (openApiContract?.requestHeaders) {
                                                 openApiContract?.requestHeaders?.each { xheader ->
                                                     xheader.each { k, v ->
-
-                                                        log.info(" -header --{} ",map.get(contractId.toString()).XRequestMatcher.XHeader.key)
-
                                                         header(k, v)
                                                     }
                                                 }
+                                            }
+
+                                            headerList?.each { d ->
+                                                entries << d
+
                                             }
 
                                             if(operation?.requestBody?.content){
@@ -381,7 +410,6 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                                     responseContract.cookies.each { responseCookie ->
                                                                         def matcher =responseContract.matchers.cookies.find { it.key == responseCookie.key }
                                                                         Object serverValue = serverCookieValue(responseCookie.value, matcher, responseCookie.key)
-
                                                                         cookie(responseCookie.key, new DslProperty(responseCookie.value, serverValue))
                                                                     }
                                                                 }
@@ -394,8 +422,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                                 responseContract?.body?.each { entry ->
                                                                     if (responseContract.matchers?.body != null) {
                                                                         Pattern regexVal = regexifFound(responseContract.matchers.body, entry.key)
-                                                                        Generex generex = new Generex(regexVal.pattern())
-                                                                        String generateRegexBaseValue = generex.random(5,10)
+                                                                        String generateRegexBaseValue =DataGeneratorHelper.randomValueGenerator(regexVal.pattern())
                                                                         log.debug("generated random value --- ${generateRegexBaseValue}")
                                                                         if (entry.value) {
 //                                                                            log.debug("----------- {} ", regexVal)
