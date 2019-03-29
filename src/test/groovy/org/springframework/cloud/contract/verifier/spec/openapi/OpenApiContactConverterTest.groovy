@@ -5,6 +5,7 @@ import com.mifmif.common.regex.Generex
 import org.springframework.cloud.contract.spec.Contract
 import org.springframework.cloud.contract.verifier.builder.SingleTestGenerator
 import org.springframework.cloud.contract.verifier.converter.YamlContractConverter
+import org.springframework.cloud.contract.verifier.spec.openapi.model.XContract
 import spock.lang.Ignore
 import spock.lang.Specification
 
@@ -187,12 +188,12 @@ class OpenApiContactConverterTest extends Specification {
         when:
              Contract contract = addressContracts.getAt(0)
              def result = contactConverter.isAccepted(addressApiFile)
-             println(result)
+
 
 
         then:
             result
-            contract
+            println(objectMapper.writeValueAsString( contract ))
     }
 
 
@@ -250,7 +251,7 @@ class OpenApiContactConverterTest extends Specification {
     }
 
 
-    @Ignore
+//    @Ignore
     def "actual security contract "() {
         given:
         Contract contract = Contract.make {
@@ -260,8 +261,8 @@ class OpenApiContactConverterTest extends Specification {
                 headers {
                     header(contentType() , containing(applicationFormUrlencoded()))
                     header(authorization(), value(c(regex(nonEmpty())), p("Basic [B@15b56bb) ")))
-//                    header("X-CLIENT-MODE", "something.somethign")
-//                    header("X-GUEST-ACCOUNT-ID", "something.somethign")
+                    header("X-CLIENT-MODE", "something.somethign")
+                    header("X-GUEST-ACCOUNT-ID", "something.somethign")
                 }
                 url ("/token"){
 //                    queryParameters {
@@ -295,6 +296,19 @@ class OpenApiContactConverterTest extends Specification {
                         account_href: value(c("account_href"),p(regex(nonEmpty())))
                 )
 
+               /* body (
+                    '''
+                    {
+                        "access_token" : "accesstoken",
+                        "token_type" : "token_type",
+                        "expires_in" : 12000,
+                        "refresh_token" : "refreshToken",
+                        "account_id" : "accountID",
+                        "account_href" :  "account_href"
+                    }
+                    '''
+                )
+*/
                 headers {
                     contentType(applicationJson())
                 }
@@ -321,6 +335,29 @@ class OpenApiContactConverterTest extends Specification {
         then:
         println("generated random value ---> ${generateRegexBaseValue}")
 
+    }
+
+    def "validate if contract for petstore could be parsed"(){
+        when:
+        OpenApiConverterHelper openApiConverterHelper = new OpenApiConverterHelper()
+        URL petstoreUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_petstore.yaml")
+        File petstoreFile = new File(petstoreUrl.toURI())
+        Map<String, XContract> map = openApiConverterHelper.getStringXContractHashMap(openApiConverterHelper.fromFile(petstoreFile))
+
+        then:
+         println(" extracted data "+ objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(map) )
+    }
+
+
+    def "validate if contract for security could be parsed"(){
+        when:
+        OpenApiConverterHelper openApiConverterHelper = new OpenApiConverterHelper()
+        URL petstoreUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_security.yaml")
+        File petstoreFile = new File(petstoreUrl.toURI())
+        Map<String, XContract> map = openApiConverterHelper.getStringXContractHashMap(openApiConverterHelper.fromFile(petstoreFile))
+
+        then:
+        println(" extracted data "+ objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(map) )
     }
 
 }

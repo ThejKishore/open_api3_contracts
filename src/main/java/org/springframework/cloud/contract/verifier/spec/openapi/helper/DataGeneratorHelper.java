@@ -2,6 +2,7 @@ package org.springframework.cloud.contract.verifier.spec.openapi.helper;
 
 import com.mifmif.common.regex.Generex;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 public class DataGeneratorHelper {
@@ -11,14 +12,17 @@ public class DataGeneratorHelper {
     public static final String USR_PWD = "%s:%s";
 
     public static String generateBasicAuthCode(){
-        String base64EncodedValue = Base64.getEncoder().encode(String.format(USR_PWD, "user", "password").getBytes()).toString();
-        return concatenatedValue(BASIC_AUTH,base64EncodedValue);
+        return concatenatedValue(BASIC_AUTH,createBase64("user", "password"));
 
     }
 
+    private static String createBase64(String username, String password) {
+        String credentials = String.format(USR_PWD,username,password);
+        return new String(Base64.getEncoder().encode(credentials.getBytes(StandardCharsets.UTF_8)),StandardCharsets.UTF_8);
+    }
+
     public static String generateBearerAuthCode(){
-        String base64EncodedValue = Base64.getEncoder().encode(String.format(USR_PWD, "user", "password").getBytes()).toString();
-        return concatenatedValue(BEARER_AUTH,base64EncodedValue);
+        return concatenatedValue(BEARER_AUTH,createBase64("user", "password"));
 
     }
 

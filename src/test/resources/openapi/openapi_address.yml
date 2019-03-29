@@ -69,32 +69,75 @@ paths:
                     type: string
           x-contracts:
             - contractId: 7
+#              body:
+#                city: "asdsadasdasd"
+#                state: "Texas"
+#                zipCode: "Something"
+#                directShipStoreNumber: "03"
+#                primeDistributionCenterId: "02"
+#                citySuspendOrderIndicator: "12"
               body:
-                city: "asdsadasdasd"
-                state: "Texas"
-                zipCode: "Something"
-                directShipStoreNumber: "03"
-                primeDistributionCenterId: "02"
-                citySuspendOrderIndicator: "12"
+                $ref: "#/components/schemas/zipDetails"
               headers:
                 Content-Type: application/json;charset=UTF-8
+#              matchers:
+#                body:
+#                  - path: $.['city']
+#                    type: by_regex
+#                    value: "[a-zA-Z0-9 .]+"
+#                  - path: $.['state']
+#                    type: by_regex
+#                    value: "[a-zA-Z0-9 .]+"
+#                  - path: $.['zipCode']
+#                    type: by_regex
+#                    value: "[a-zA-Z0-9 .]+"
+#                  - path: $.['directShipStoreNumber']
+#                    type: by_regex
+#                    value: "[a-zA-Z0-9 .]+"
+#                  - path: $.['primeDistributionCenterId']
+#                    type: by_regex
+#                    value: "[a-zA-Z0-9 .]+"
+#                  - path: $.['citySuspendOrderIndicator']
+#                    type: by_regex
+#                    value: "[a-zA-Z0-9 .]+"
               matchers:
                 body:
-                  - path: $.['city']
+                  - path: city
                     type: by_regex
+                    in: body
                     value: "[a-zA-Z0-9 .]+"
-                  - path: $.['state']
+                  - path: state
                     type: by_regex
+                    in: body
                     value: "[a-zA-Z0-9 .]+"
-                  - path: $.['zipCode']
+                  - path: zipCode
                     type: by_regex
+                    in: body
                     value: "[a-zA-Z0-9 .]+"
-                  - path: $.['directShipStoreNumber']
+                  - path: directShipStoreNumber
                     type: by_regex
+                    in: body
                     value: "[a-zA-Z0-9 .]+"
-                  - path: $.['primeDistributionCenterId']
+                  - path: primeDistributionCenterId
                     type: by_regex
+                    in: body
                     value: "[a-zA-Z0-9 .]+"
-                  - path: $.['citySuspendOrderIndicator']
+                  - path: citySuspendOrderIndicator
                     type: by_regex
+                    in: body
                     value: "[a-zA-Z0-9 .]+"
+components:
+  schemas:
+    zipDetails:
+      type: object
+      example: |
+        {
+            "city":"something",
+             "state":"something" ,
+             "zipCode":"refresh token" ,
+             "directShipStoreNumber" :"account id" ,
+             "primeDistributionCenterId": "account href" ,
+             "citySuspendOrderIndicator": "adasdsd"
+        }
+      description: "response zipDetails body structure"
+      title: '#zipDetails'

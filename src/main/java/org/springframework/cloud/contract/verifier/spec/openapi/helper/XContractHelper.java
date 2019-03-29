@@ -46,15 +46,13 @@ public class XContractHelper {
     private static final Predicate<Object> isValidObject = s -> !ObjectUtils.isEmpty(s);
     private static final Predicate<String> isValidString = s -> !ObjectUtils.isEmpty(s);
 
-
+    private XContractHelper() {}
 
     @SneakyThrows
     public static XContract fromLinkedHashMap(LinkedHashMap<String,Object> data){
         Object priority = data.get(PRIORITY);
         String contractId = data.get(CONTRACT_ID).toString();
         String name = data.get(NAME).toString();
-
-
         return XContract.builder()
                 .contractId(isValidString.test(contractId) ?  contractId : "")
                 .name(isValidString.test(name) ?  name : "")
@@ -68,7 +66,8 @@ public class XContractHelper {
     public static void fromLinkedHashMapContractBody(LinkedHashMap<String,Object> data, Map<String,XContract> existingContract){
         String xContractId = data.get(CONTRACT_ID).toString();
         XContract xContract = existingContract.get(xContractId);
-        xContract.setXRequestBody((LinkedHashMap<String,Object>)data.get(BODY));
+        Map<String,Object> body = (LinkedHashMap<String,Object>)data.get(BODY);
+        xContract.setXRequestBody(body);
         //validate if matcher is available
         if(xContract.getXRequestMatcher() == null ){
             xContract.setXRequestMatcher(XRequestMatcher.builder()
@@ -78,10 +77,10 @@ public class XContractHelper {
     }
 
 
-    public static Predicate isPathParam =  map -> isPathParam((Map<String,String>) map);
-    public static Predicate isHeaderParam =  map -> isHeaderParam((Map<String,String>) map);
-    public static Predicate isRequestParam =  map -> isRequestParam((Map<String,String>) map);
-    public static Predicate isBodyParam = map -> isBodyParam((Map<String,String>) map);
+    private static Predicate isPathParam =  map -> isPathParam((Map<String,String>) map);
+    private static Predicate isHeaderParam =  map -> isHeaderParam((Map<String,String>) map);
+    private static Predicate isRequestParam =  map -> isRequestParam((Map<String,String>) map);
+    private static Predicate isBodyParam = map -> isBodyParam((Map<String,String>) map);
 
     private static boolean isPathParam(Map<String,String> map){
         String inType = map.get(IN);
@@ -158,11 +157,17 @@ public class XContractHelper {
     }
 
 
+
     private static Stream isRequestMatcherAvailable(LinkedHashMap<String, Object> params, String paramaters){
-        Object data =((LinkedHashMap<String, Object>) params.get(MATCHERS)).get(paramaters) ;
-        if(data instanceof  List){
-            return ((List) data).stream();
-        }else{
+        LinkedHashMap<String, Object> paramMatcher = (LinkedHashMap<String, Object>) params.get(MATCHERS);
+        if(paramMatcher !=null) {
+            Object data = paramMatcher.get(paramaters);
+            if (data instanceof List) {
+                return ((List) data).stream();
+            } else {
+                return Stream.empty();
+            }
+        } else{
             return Stream.empty();
         }
     }
@@ -189,7 +194,5 @@ public class XContractHelper {
 
         xContract.getXResponseMatcher().addHeaderMatchers(collectMatcherDetails(data, BODY, isHeaderParam));
         xContract.getXResponseMatcher().addHeaderMatchers(collectMatcherDetails(data, HEADER, isHeaderParam));
-
-
     }
 }

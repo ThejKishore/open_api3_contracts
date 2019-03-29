@@ -1,5 +1,6 @@
 package org.springframework.cloud.contract.verifier.spec.openapi
 
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.ObjectWriter
 import groovy.util.logging.Slf4j
@@ -12,6 +13,7 @@ import org.springframework.cloud.contract.spec.ContractConverter
 import org.springframework.cloud.contract.spec.internal.*
 import org.springframework.cloud.contract.verifier.converter.YamlContract
 import org.springframework.cloud.contract.verifier.spec.openapi.helper.DataGeneratorHelper
+import org.springframework.cloud.contract.verifier.spec.openapi.helper.JsonModelHelper
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XContract
 
 import java.util.regex.Pattern
@@ -199,15 +201,15 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                         operation?.parameters?.each { openApiParam ->
                                                             if (openApiParam.in == 'header') {
 //                                                                headers {
-                                                                    log.info(" --- inside ---param --- header ")
-                                                                    log.info(" -header --{} ",xContract.XRequestMatcher.xheader[openApiParam.name])
-                                                                    def xheader = xContract.XRequestMatcher.xheader[openApiParam.name]
-                                                                    String regexval = xheader?.value?:"[0-9a-zA-Z]{10}"
-                                                                    if(openApiParam.name == "Authorization") {
-                                                                        headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())), p(DataGeneratorHelper.generateBasicAuthCode()))))
-                                                                    } else {
-                                                                        headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval)))))
-                                                                    }
+                                                                log.info(" --- inside ---param --- header ")
+                                                                log.info(" -header --{} ",xContract.XRequestMatcher.xheader[openApiParam.name])
+                                                                def xheader = xContract.XRequestMatcher.xheader[openApiParam.name]
+                                                                String regexval = xheader?.value?:"[0-9a-zA-Z]{10}"
+                                                                if(openApiParam.name == "Authorization") {
+                                                                    headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())), p(DataGeneratorHelper.generateBasicAuthCode()))))
+                                                                } else {
+                                                                    headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval)))))
+                                                                }
 //                                                                }
                                                             }
                                                             if (openApiParam.in == 'query') {
@@ -217,24 +219,6 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                                 String regexval = xquery?.value?:"[0-9a-zA-Z]{10}"
                                                                 parameter(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval))))
                                                             }
-                                                           /* openApiParam?.extensions?."x-contracts".each { contractParam ->
-                                                                if (contractParam.contractId == contractId) {
-                                                                    if (openApiParam.in == 'query') {
-                                                                        parameter(openApiParam.name, contractParam.default)
-                                                                    }
-                                                                    if (openApiParam.in == 'header') {
-                                                                        headers {
-                                                                            log.info(" --- inside ---param --- header ")
-                                                                            header(openApiParam.name, contractParam.default)
-                                                                        }
-                                                                    }
-                                                                    if (openApiParam.in == 'cookie') {
-                                                                        cookies {
-                                                                            cookie(openApiParam.name, contractParam.default)
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }*/
                                                         }
                                                     }
                                                 }
@@ -250,11 +234,11 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                                 def regexval = xheader?.value?:"[0-9a-zA-Z]{10}"
                                                                 log.info(" regexval {} ",regexval)
 //                                                                headers {
-                                                                    if(openApiParam.name == "Authorization") {
-                                                                       headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())), p(DataGeneratorHelper.generateBasicAuthCode()))))
-                                                                    } else {
-                                                                        headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval)))))
-                                                                    }
+                                                                if(openApiParam.name == "Authorization") {
+                                                                    headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())), p(DataGeneratorHelper.generateBasicAuthCode()))))
+                                                                } else {
+                                                                    headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval)))))
+                                                                }
 //                                                                }
                                                             }
                                                             if (openApiParam.in == 'query') {
@@ -264,23 +248,6 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                                 def regexval = xquery?.value?:"[0-9a-zA-Z]{10}"
                                                                 parameter(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval))))
                                                             }
-
-                                                            /*openApiParam?.extensions?."x-contracts".each { contractParam ->
-                                                                if (contractParam.contractId == contractId) {
-
-
-                                                                    if (openApiParam.in == 'header') {
-                                                                        headers {
-                                                                            header(openApiParam.name, contractParam.default)
-                                                                        }
-                                                                    }
-                                                                    if (openApiParam.in == 'cookie') {
-                                                                        cookies {
-                                                                            cookie(openApiParam.name, contractParam.default)
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }*/
                                                         }
                                                     }
                                                 }
@@ -333,8 +300,16 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                         }
                                                     }
 
-
-                                                    body(data)
+                                                    String JSON_STRING = xContract.XRequestBody['default_body']
+                                                    if(JSON_STRING){
+                                                        Map<String, Object> requestBodyMap = objectMapper.readValue(JSON_STRING, new TypeReference<Map<String, Object>>(){})
+//                                                                body(responseContract.body)
+                                                        //todo construct the Map<String,DslProperty>
+                                                        def data1 = JsonModelHelper.getRequestBodyDSL(requestBodyMap,xContract.XRequestBody.xbody)
+                                                        body(data1)
+                                                    } else {
+                                                        body(data)
+                                                    }
 
                                                     bodyMatchers {
                                                         contractBody.matchers?.body?.each { matcher ->
@@ -439,15 +414,27 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                                     }
                                                                 }
 
-
+                                                                //todo if example available.
+                                                                String JSON_STRING = xContract.XResponseBody['default_body']
+                                                                if(JSON_STRING){
+                                                                    Map<String, Object> responseMap = objectMapper.readValue(JSON_STRING, new TypeReference<Map<String, Object>>(){})
 //                                                                body(responseContract.body)
-                                                                body(data)
+                                                                    println ( " $responseMap")
+                                                                    //todo construct the Map<String,DslProperty>
+                                                                    def data1 = JsonModelHelper.getResponseBodyDSL(responseMap,xContract.XResponseMatcher.xbody)
+                                                                    body(data1)
+                                                                } else{
+                                                                    body(data)
+                                                                }
+
+
+
                                                             }
 
                                                             if (responseContract.bodyFromFile) body(file(responseContract.bodyFromFile))
 
                                                             if (responseContract.async) async()
-
+                                                            //used in producer test case to validate the value...
                                                             bodyMatchers{
                                                                 responseContract.matchers?.body?.each { matcher ->
                                                                     MatchingTypeValue value = null

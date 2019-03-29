@@ -5,21 +5,18 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.parser.OpenAPIV3Parser;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cloud.contract.spec.Contract;
-import org.springframework.cloud.contract.spec.GroovyContractConvertor;
 import org.springframework.cloud.contract.verifier.spec.openapi.helper.XContractHelper;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XContract;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XMethod;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XRequestPath;
 
 import java.io.File;
-import java.net.URL;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.springframework.cloud.contract.verifier.spec.openapi.helper.XContractHelper.*;
@@ -29,6 +26,8 @@ public class OpenApiConverterHelper {
 
 
     public static final OpenApiContractConverter INSTANCE = new OpenApiContractConverter();
+    public static final String $_REF = "$ref";
+    public static final String DEFAULT_BODY = "default_body";
 
     private ObjectMapper objectMapper = new ObjectMapper();
     private ObjectWriter jsonObjectWriter = objectMapper.writerWithDefaultPrettyPrinter();
@@ -42,25 +41,8 @@ public class OpenApiConverterHelper {
      * **/
 
     @SneakyThrows
-    public void fromFile(File file){
-//        List<Contract> contracts = new ArrayList<>();
-        OpenAPI spec = new OpenAPIV3Parser().read(file.getPath());
-
-//        log.info(" spec {} ", jsonObjectWriter.writeValueAsString(spec));
-
-        //[extract:start:XContracts]
-        HashMap<String, XContract> xContracts = getStringXContractHashMap(spec);
-
-        //[extract:end:XContracts]
-
-        //[create:start:CloudContracts]
-        //todo
-//        List<Contract> contracts = createCloudContracts(xContracts,spec);
-
-        //[create:end:CloudContracts]
-
-//        log.info("{}  " , jsonObjectWriter.writeValueAsString(xContracts));
-//        return contracts;
+    public OpenAPI fromFile(File file){
+        return new OpenAPIV3Parser().read(file.getPath());
     }
 
     public HashMap<String, XContract> getStringXContractHashMap(OpenAPI spec) {
@@ -70,22 +52,42 @@ public class OpenApiConverterHelper {
         getXContractResponseBody(spec,xContracts);
         xContracts.entrySet().stream()
                 .forEach(key -> setGenericContactDetails(spec, key.getKey(),key.getValue()));
-
         return xContracts;
     }
 
-    private List<Contract> createCloudContracts(Map<String,XContract> xContractMap,OpenAPI openAPI){
-        List<Contract> cloudGroovyContract = xContractMap.entrySet().stream()
-                .map(entry -> GroovyContractConvertor.convertXContractToGroovyContract(entry.getValue(),openAPI))
-                .collect(Collectors.toList());
-        return cloudGroovyContract;
-    }
+
 
     @SneakyThrows
     private void setGenericContactDetails(OpenAPI spec, String key,XContract contract) {
         setXRequestPathToXContract(spec,key,contract);
         setXResponseToXContract(spec,key,contract);
+
+        //  if Body has $ref try getting the json from #components/schemas/refId.
+        //  Add one more key default body and add the json....
+        if(contract.getXRequestBody() !=null && contract.getXRequestBody().get($_REF) !=null){
+            String pojoKey = getPojoKey(contract.getXRequestBody());
+            Schema data =  spec.getComponents().getSchemas().get(pojoKey);
+            if(data !=null &&  data.getExample() !=null) {
+                contract.getXRequestBody().put(DEFAULT_BODY, data.getExample().toString());
+            }
+        }
+
+        if(contract.getXResponseBody() !=null && contract.getXResponseBody().get($_REF) !=null){
+            String pojoKey = getPojoKey(contract.getXResponseBody());
+            Schema data =  spec.getComponents().getSchemas().get(pojoKey);
+            if(data !=null && data.getExample() !=null) {
+                contract.getXResponseBody().put(DEFAULT_BODY, data.getExample().toString());
+            }
+        }
+
         log.info("xcontract  --- {}",jsonObjectWriter.writeValueAsString(contract));
+    }
+
+    private String getPojoKey(Map<String, Object> xResponseBody) {
+        String pojoKey = xResponseBody.get($_REF).toString();
+        int startIndex = pojoKey.lastIndexOf('/')+1 ;
+        pojoKey = pojoKey.substring(startIndex);
+        return pojoKey;
     }
 
     private void setXResponseToXContract(OpenAPI spec, String key,XContract contract) {
@@ -212,12 +214,20 @@ public class OpenApiConverterHelper {
      * @return  xContracts {@link HashMap<String,XContract>}
      */
     public HashMap<String, XContract> getInitialXContract(OpenAPI spec) {
-        return (HashMap<String, XContract>)getOperationsFromAGivenSpec(spec)
+        HashMap<String,XContract> xContractMap = new HashMap<>();
+
+         getOperationsFromAGivenSpec(spec)
                 .filter(isExtensionAvailableInOperation)
                 .map(operation -> ((ArrayList) operation.getExtensions().get(X_CONTRACTS)))
                 .flatMap(data -> data.stream())
                 .map(data -> XContractHelper.fromLinkedHashMap((LinkedHashMap<String, Object>) data))
-                .collect(Collectors.toMap(data -> ((XContract)data).getContractId() , data -> ((XContract)data)));
+                .forEach(data -> addXContractToMap(((XContract) data),xContractMap));
+
+        return xContractMap;
+    }
+
+    private void addXContractToMap(XContract xContract,Map<String,XContract> xContractMap){
+        xContractMap.putIfAbsent(xContract.getContractId(),xContract);
     }
 
     /**
@@ -233,15 +243,5 @@ public class OpenApiConverterHelper {
                 .flatMap(operations -> operations.stream());
     }
 
-    @SneakyThrows
-    public static void main(String[] args) {
-//        URL securityUrl = OpenApiConverterHelper.class.getResource("/openapi/fraudservice.yaml");
-        URL securityUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_security.yaml");
-//        URL securityUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_address.yml");
-        File securityApiFile = new File(securityUrl.toURI());
-
-        OpenApiConverterHelper openApiConverterHelper = new OpenApiConverterHelper();
-        openApiConverterHelper.fromFile(securityApiFile);
-    }
 
 }
