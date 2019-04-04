@@ -7,10 +7,14 @@ import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.contract.verifier.spec.openapi.OpenApiConverterHelper;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.*;
 import org.springframework.util.ObjectUtils;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -20,19 +24,19 @@ import java.util.stream.Stream;
 public class XContractHelper {
 
     public static final String X_CONTRACTS = "x-contracts";
-    private static final String NAME = "name";
-    private static final String PRIORITY = "priority";
-    private static final String PATH = "path";
-    private static final String TYPE = "type";
-    private static final String PREDEFINED = "predefined";
-    private static final String IN = "in";
-    private static final String VALUE = "value";
+    public static final String NAME = "name";
+    public static final String PRIORITY = "priority";
+    public static final String PATH = "path";
+    public static final String TYPE = "type";
+    public static final String PREDEFINED = "predefined";
+    public static final String IN = "in";
+    public static final String VALUE = "value";
     public static final String CONTRACT_ID = "contractId";
-    private static final String BODY = "body";
-    private static final String MATCHERS = "matchers";
-    private static final String PARAMATERS = "paramaters";
-    private static final String HEADER = "header";
-    private static final String QUERY = "query";
+    public static final String BODY = "body";
+    public static final String MATCHERS = "matchers";
+    public static final String PARAMATERS = "paramaters";
+    public static final String HEADER = "header";
+    public static final String QUERY = "query";
 
     public static final Predicate<Operation> isRequestParameterAvailable = o -> o.getParameters()!=null;
     public static final Predicate<Operation> isRequestBodyAvailable = o -> o.getRequestBody()!=null;
@@ -43,8 +47,8 @@ public class XContractHelper {
     public static final Predicate<ApiResponses> isResponseEntrySetAvailable = apiResponses ->  apiResponses.entrySet()!=null;
     public static final Predicate<Operation> isExtensionAvailableInOperation= o -> o.getExtensions() !=null && o.getExtensions().get(X_CONTRACTS) != null;
 
-    private static final Predicate<Object> isValidObject = s -> !ObjectUtils.isEmpty(s);
-    private static final Predicate<String> isValidString = s -> !ObjectUtils.isEmpty(s);
+    public static final Predicate<Object> isValidObject = s -> !ObjectUtils.isEmpty(s);
+    public static final Predicate<String> isValidString = s -> !ObjectUtils.isEmpty(s);
 
     private XContractHelper() {}
 
@@ -77,10 +81,12 @@ public class XContractHelper {
     }
 
 
-    private static Predicate isPathParam =  map -> isPathParam((Map<String,String>) map);
-    private static Predicate isHeaderParam =  map -> isHeaderParam((Map<String,String>) map);
-    private static Predicate isRequestParam =  map -> isRequestParam((Map<String,String>) map);
-    private static Predicate isBodyParam = map -> isBodyParam((Map<String,String>) map);
+    public static Predicate isPathParam =  map -> isPathParam((Map<String,String>) map);
+    public static Predicate isHeaderParam =  map -> isHeaderParam((Map<String,String>) map);
+    public static Predicate isHeaderMatcherRef =  map -> isHeaderParam((Map<String,String>) map);
+    public static Predicate isRequestParam =  map -> isRequestParam((Map<String,String>) map);
+    public static Predicate isBodyParam = map -> isBodyParam((Map<String,String>) map);
+    public static Predicate isBodyMatcherRef = map -> isBodyMatcherRef((Map<String,String>) map);
 
     private static boolean isPathParam(Map<String,String> map){
         String inType = map.get(IN);
@@ -92,9 +98,19 @@ public class XContractHelper {
         return inType !=null && !inType.trim().isEmpty() && inType.equals(BODY);
     }
 
+    private static boolean isBodyMatcherRef(Map<String,String> map){
+        String inType = map.get("matcher-ref");
+        return inType !=null && !inType.trim().isEmpty();
+    }
+
     private static boolean isHeaderParam(Map<String,String> map){
         String inType = map.get(IN);
         return inType !=null && !inType.trim().isEmpty() && inType.equals(HEADER);
+    }
+
+    private static boolean isHeaderMatcherRef(Map<String,String> map){
+        String inType = map.get("matcher-ref");
+        return inType !=null && !inType.trim().isEmpty();
     }
 
     private static boolean isRequestParam(Map<String,String> map){
@@ -138,10 +154,12 @@ public class XContractHelper {
     private static void extractRequestMatcherDetails(LinkedHashMap<String, Object> params, XContract xContract) {
         //An X-Contract details can set in any place within body , parameters , header ,cookie
 
-        xContract.getXRequestMatcher().addBodyMatchers(collectMatcherDetails(params, BODY, isBodyParam));
-        xContract.getXRequestMatcher().addBodyMatchers(collectMatcherDetails(params, PARAMATERS, isBodyParam));
-        xContract.getXRequestMatcher().addBodyMatchers(collectMatcherDetails(params, HEADER, isBodyParam));
-
+        collectBodyMatcherRefDetails(params, BODY, isBodyMatcherRef ,xContract.getXRequestMatcher());
+        if(xContract.getXRequestMatcher().getBodyMatchRefer() == null || xContract.getXRequestMatcher().getBodyMatchRefer().isEmpty()) {
+            xContract.getXRequestMatcher().addBodyMatchers(collectMatcherDetails(params, BODY, isBodyParam));
+            xContract.getXRequestMatcher().addBodyMatchers(collectMatcherDetails(params, PARAMATERS, isBodyParam));
+            xContract.getXRequestMatcher().addBodyMatchers(collectMatcherDetails(params, HEADER, isBodyParam));
+        }
 
         xContract.getXRequestMatcher().addPathParamMatchers(collectMatcherDetails(params, BODY, isPathParam));
         xContract.getXRequestMatcher().addPathParamMatchers(collectMatcherDetails(params, PARAMATERS, isPathParam));
@@ -151,11 +169,26 @@ public class XContractHelper {
         xContract.getXRequestMatcher().addRequestParamMatchers(collectMatcherDetails(params, PARAMATERS, isRequestParam));
         xContract.getXRequestMatcher().addRequestParamMatchers(collectMatcherDetails(params, HEADER, isRequestParam));
 
+
+        collectBodyMatcherRefDetails(params, HEADER, isHeaderMatcherRef ,xContract.getXRequestMatcher());
         xContract.getXRequestMatcher().addHeaderMatchers(collectMatcherDetails(params, BODY, isHeaderParam));
         xContract.getXRequestMatcher().addHeaderMatchers(collectMatcherDetails(params, PARAMATERS, isHeaderParam));
         xContract.getXRequestMatcher().addHeaderMatchers(collectMatcherDetails(params, HEADER, isHeaderParam));
     }
 
+    private static Stream isReferenceMatcherAvailable(LinkedHashMap<String, Object> params, String paramaters) {
+        LinkedHashMap<String, Object> paramMatcher = (LinkedHashMap<String, Object>) params.get(MATCHERS);
+        if (paramMatcher != null ) {
+            Object data = paramMatcher.get(paramaters);
+            if(data instanceof Map && isBodyMatcherRef.test(data)) {
+                return ((Map<String,String>)data).entrySet().stream();
+            } else{
+                return Stream.empty();
+            }
+        } else{
+            return Stream.empty();
+        }
+    }
 
 
     private static Stream isRequestMatcherAvailable(LinkedHashMap<String, Object> params, String paramaters){
@@ -172,13 +205,33 @@ public class XContractHelper {
         }
     }
 
-    private static Map<String,XMatcherDetails> collectMatcherDetails(LinkedHashMap<String, Object> params, String paramaters, Predicate predicate) {
+    @SneakyThrows
+    private static <T> void display(String logInfo , T t){
+        log.info(logInfo, OpenApiConverterHelper.jsonObjectWriter.writeValueAsString(t));
+    }
+
+    private static void collectBodyMatcherRefDetails(LinkedHashMap<String, Object> params, String paramaters, Predicate predicate,XMatcher xMatcher) {
+        isReferenceMatcherAvailable(params,paramaters)
+                .forEach(data1 -> XContractHelper.setBodyMatcherRef((Map.Entry<String, Object>) data1 , xMatcher));
+    }
+
+    private static void setBodyMatcherRef(Map.Entry<String,Object> mapValue,XMatcher xMatcher){
+        if("matcher-ref".equals(mapValue.getKey())){
+            xMatcher.setBodyMatchRefer((String)mapValue.getValue());
+        } else if("ignore".equals(mapValue.getKey())){
+            xMatcher.addBodyIgnoredAttributes((List<String>)mapValue.getValue());
+        }
+    }
+
+
+    public static Map<String,XMatcherDetails> collectMatcherDetails(LinkedHashMap<String, Object> params, String paramaters, Predicate predicate) {
         return (Map<String,XMatcherDetails>) isRequestMatcherAvailable(params,paramaters)
                 .filter(predicate)
                 .map(data1 -> XContractHelper.getXMatcherDetails((LinkedHashMap<String, String>) data1))
                 .collect(Collectors.toMap(t -> ((Tuple<String,XMatcherDetails>) t).getA() , t -> ((Tuple<String,XMatcherDetails>) t).getB() ));
     }
 
+    @SneakyThrows
     public static void fromLinkedHashMapContractResponseBody(LinkedHashMap<String, Object> data, HashMap<String, XContract> xContracts) {
         String xContractId = data.get(CONTRACT_ID).toString();
         XContract xContract = xContracts.get(xContractId);
@@ -189,9 +242,13 @@ public class XContractHelper {
                     .build());
         }
 
-        xContract.getXResponseMatcher().addBodyMatchers(collectMatcherDetails(data, BODY, isBodyParam));
-        xContract.getXResponseMatcher().addBodyMatchers(collectMatcherDetails(data, HEADER, isBodyParam));
+        collectBodyMatcherRefDetails(data, BODY, isBodyMatcherRef ,xContract.getXResponseMatcher());
+        if(xContract.getXResponseMatcher().getBodyMatchRefer() == null || xContract.getXResponseMatcher().getBodyMatchRefer().isEmpty()) {
+            xContract.getXResponseMatcher().addBodyMatchers(collectMatcherDetails(data, BODY, isBodyParam));
+            xContract.getXResponseMatcher().addBodyMatchers(collectMatcherDetails(data, HEADER, isBodyParam));
+        }
 
+        collectBodyMatcherRefDetails(data, HEADER, isHeaderMatcherRef ,xContract.getXResponseMatcher());
         xContract.getXResponseMatcher().addHeaderMatchers(collectMatcherDetails(data, BODY, isHeaderParam));
         xContract.getXResponseMatcher().addHeaderMatchers(collectMatcherDetails(data, HEADER, isHeaderParam));
     }

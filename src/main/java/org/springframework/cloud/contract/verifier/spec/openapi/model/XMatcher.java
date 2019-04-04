@@ -9,6 +9,9 @@ import java.util.*;
 /**
  *  * 	Matcher
  *  * 		body
+ *              matcher-ref: "#/components/schemas/accessToken/x-matchers/default/matchers/body"
+ *              ignore:
+ *                 - access_token
  *             - path: $.['city']
  *               type: by_regex
  *               value: "[a-zA-Z0-9 .]+"
@@ -36,6 +39,12 @@ import java.util.*;
 @NoArgsConstructor
 public class XMatcher {
 
+    String bodyMatchRefer;
+    Set<String> bodyIgnoredAttributes = new HashSet<>();
+
+    String headerMatchRefer;
+    Set<String> headerIgnoredAttributes = new HashSet<>();
+
     Map<String,XMatcherDetails> xbody;
     Map<String,XMatcherDetails> xheader;
 
@@ -53,5 +62,21 @@ public class XMatcher {
         }
         xbody.putAll(xMatcherDetails);
     }
+
+
+    public void addHeaderIgnoredAttributes(Collection<String> headerIgnoredAttributes){
+        if(this.headerIgnoredAttributes == null) {
+            this.headerIgnoredAttributes = new HashSet<>();
+        }
+        this.headerIgnoredAttributes.addAll(headerIgnoredAttributes);
+    }
+
+    public void addBodyIgnoredAttributes(Collection<String> bodyIgnoredAttributes){
+        if(this.bodyIgnoredAttributes == null) {
+            this.bodyIgnoredAttributes = new HashSet<>();
+        }
+        this.bodyIgnoredAttributes.addAll(bodyIgnoredAttributes);
+    }
+
 
 }

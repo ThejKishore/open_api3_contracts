@@ -10,13 +10,19 @@ import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.parser.OpenAPIV3Parser;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.springframework.cloud.contract.verifier.spec.openapi.helper.XContractHelper;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XContract;
+import org.springframework.cloud.contract.verifier.spec.openapi.model.XMatcherDetails;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XMethod;
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XRequestPath;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
 import java.util.*;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.springframework.cloud.contract.verifier.spec.openapi.helper.XContractHelper.*;
@@ -29,8 +35,9 @@ public class OpenApiConverterHelper {
     public static final String $_REF = "$ref";
     public static final String DEFAULT_BODY = "default_body";
 
-    private ObjectMapper objectMapper = new ObjectMapper();
-    private ObjectWriter jsonObjectWriter = objectMapper.writerWithDefaultPrettyPrinter();
+    public static final ObjectMapper objectMapper = new ObjectMapper();
+    public static final ObjectWriter jsonObjectWriter = objectMapper.writerWithDefaultPrettyPrinter();
+    public static final String DEFAULT = "default";
 
 
     /**
@@ -67,20 +74,95 @@ public class OpenApiConverterHelper {
         if(contract.getXRequestBody() !=null && contract.getXRequestBody().get($_REF) !=null){
             String pojoKey = getPojoKey(contract.getXRequestBody());
             Schema data =  spec.getComponents().getSchemas().get(pojoKey);
-            if(data !=null &&  data.getExample() !=null) {
-                contract.getXRequestBody().put(DEFAULT_BODY, data.getExample().toString());
+            if(data !=null) {
+
+                if(data.getExample() !=null) {
+                    contract.getXRequestBody().put(DEFAULT_BODY, getExampleFrom(data.getExample().toString()));
+                }
+                if(isDefaultMatcherAvailable(data)){
+                    Map<String,Object> defaultXContract = (Map<String,Object>)data.getExtensions().get(X_CONTRACTS);
+                    LinkedHashMap<String,Object>  defaultMatchers = (LinkedHashMap<String,Object>) defaultXContract.get(DEFAULT);
+                    contract.getXRequestMatcher().addBodyMatchers(collectMatcherDetails(defaultMatchers, BODY, isBodyParam));
+                }
             }
         }
 
         if(contract.getXResponseBody() !=null && contract.getXResponseBody().get($_REF) !=null){
             String pojoKey = getPojoKey(contract.getXResponseBody());
             Schema data =  spec.getComponents().getSchemas().get(pojoKey);
-            if(data !=null && data.getExample() !=null) {
-                contract.getXResponseBody().put(DEFAULT_BODY, data.getExample().toString());
+            if(data !=null ) {
+                if(data.getExample() !=null) {
+                    contract.getXResponseBody().put(DEFAULT_BODY, getExampleFrom(data.getExample().toString()));
+                }
+                if(isDefaultMatcherAvailable(data)){
+                    Map<String,Object> defaultXContract = (Map<String,Object>)data.getExtensions().get(X_CONTRACTS);
+                    LinkedHashMap<String,Object>  defaultMatchers = (LinkedHashMap<String,Object>) defaultXContract.get(DEFAULT);
+                    LinkedHashMap<String,Object>  matchers = (LinkedHashMap<String,Object>) defaultMatchers.get(MATCHERS);
+                    if(matchers !=null && !matchers.isEmpty()) {
+                        if(matchers.get(BODY) instanceof String){
+                           String value =  ((String)matchers.get(BODY));
+                           String content = getExampleFrom(value);
+                           if(content !=null && !content.isEmpty()){
+                               Yaml yaml = new Yaml();
+                               List<LinkedHashMap<String,String>> xmatcher = yaml.load(content);
+                               Map<String, XMatcherDetails> datat = xmatcher.stream()
+                                       .map(data1 -> XContractHelper.getXMatcherDetails( data1))
+                                       .collect(Collectors.toMap(t -> t.getA() , t -> t.getB() ));
+                               contract.getXResponseMatcher().addBodyMatchers(datat);
+                           }
+                        } else {
+                            contract.getXResponseMatcher().addBodyMatchers(collectMatcherDetails(defaultMatchers, BODY, isBodyParam));
+                        }
+                    }
+                }
             }
         }
 
         log.info("xcontract  --- {}",jsonObjectWriter.writeValueAsString(contract));
+    }
+
+    private Function<XMatcherDetails,String> getKey = xMatcherDetails ->  isValidString.test(xMatcherDetails.getName()) ? xMatcherDetails.getName() :  xMatcherDetails.getJsonPath();
+    private Function<XMatcherDetails,XMatcherDetails> getValue = xMatcherDetails ->  xMatcherDetails;
+
+    private Predicate<String> isFileMentioned = d -> (d !=null && !d.isEmpty() &&  (d.contains("file:") || d.contains("classpath:")) );
+
+
+    @SneakyThrows
+    private String searchAndGetContent(String fileName){
+        Optional<File> fileFound = FileUtils.listFiles(new File("."), null, true)
+                                            .stream()
+                                            .filter(f -> f.getName().equals(fileName)).findFirst();
+        return fileFound.map(this::readFile).orElseGet( () -> "not found");
+    }
+
+    @SneakyThrows
+    private String readFile(File file){
+        return FileUtils.readFileToString(file);
+    }
+
+    private String getExampleFrom(String contentRef){
+        if(!isFileMentioned.test(contentRef)){
+            return contentRef;
+        } else {
+            /*Resource resource = new DefaultResourceLoader().getResource(contentRef);
+            String contentData = contentRef;
+            try {
+                contentData = FileUtils.readFileToString(resource.getFile());
+            } catch (IOException io){
+                log.error(" File not found or readable {} ",contentRef,io);
+            }
+            return contentData;*/
+            String fileName = contentRef.replace("classpath:","").replace("file:","");
+            return searchAndGetContent(fileName);
+        }
+
+    }
+
+    private boolean isDefaultMatcherAvailable(Schema xContractMap){
+        return (xContractMap.getExtensions() !=null &&
+                xContractMap.getExtensions().get(X_CONTRACTS) !=null &&
+                ((Map)xContractMap.getExtensions().get(X_CONTRACTS)).get(DEFAULT) !=null &&
+                ((Map)((Map)xContractMap.getExtensions().get(X_CONTRACTS)).get(DEFAULT)).get("matchers") !=null);
     }
 
     private String getPojoKey(Map<String, Object> xResponseBody) {
@@ -106,7 +188,7 @@ public class OpenApiConverterHelper {
                 .map(data -> addCurrentStatus(data,xRequestPath))
                 .filter(isExtensionAvailableForResponseValue)
                 .map(respnse -> ((ArrayList) respnse.getValue().getExtensions().get(X_CONTRACTS)))
-                .flatMap(data -> data.stream())
+                .flatMap(Collection::stream)
                 .filter(data -> key.equals((((Map) data).get(CONTRACT_ID)).toString()))
                 .findFirst();
 

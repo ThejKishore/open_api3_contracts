@@ -3,7 +3,6 @@ package org.springframework.cloud.contract.verifier.spec.openapi
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.mifmif.common.regex.Generex
 import org.springframework.cloud.contract.spec.Contract
-import org.springframework.cloud.contract.verifier.builder.SingleTestGenerator
 import org.springframework.cloud.contract.verifier.converter.YamlContractConverter
 import org.springframework.cloud.contract.verifier.spec.openapi.model.XContract
 import spock.lang.Ignore
@@ -82,7 +81,7 @@ class OpenApiContactConverterTest extends Specification {
 
     }
 
-    @Ignore
+//    @Ignore
     def "ConvertFrom - should not go boom"() {
         given:
         File file = new File('src/test/resources/openapi/openapi.yml')
@@ -123,7 +122,7 @@ class OpenApiContactConverterTest extends Specification {
 
     }
 
-    @Ignore
+//    @Ignore
     def "test OA3 Fraud Yml"() {
         given:
         Collection<Contract> oa3Contract = contactConverter.convertFrom(fraudApiFile)
@@ -137,7 +136,7 @@ class OpenApiContactConverterTest extends Specification {
 
     }
 
-    @Ignore
+//    @Ignore
     def "Test parse of test path"() {
         given:
         Collection<Contract> oa3Contract = contactConverter.convertFrom(contractOA3FilePath)
@@ -150,7 +149,7 @@ class OpenApiContactConverterTest extends Specification {
         contract.getRequest().url.clientValue.equals("/foo1")
     }
 
-    @Ignore
+//    @Ignore
     def "Test Parse of Payor example contracts"() {
 
         given:
@@ -163,7 +162,7 @@ class OpenApiContactConverterTest extends Specification {
         contract
     }
 
-    @Ignore
+//    @Ignore
     def "Test Parse of Velo Contracts"() {
 
         given:
@@ -251,7 +250,7 @@ class OpenApiContactConverterTest extends Specification {
     }
 
 
-//    @Ignore
+    @Ignore
     def "actual security contract "() {
         given:
         Contract contract = Contract.make {
@@ -264,12 +263,14 @@ class OpenApiContactConverterTest extends Specification {
                     header("X-CLIENT-MODE", "something.somethign")
                     header("X-GUEST-ACCOUNT-ID", "something.somethign")
                 }
-                url ("/token"){
-//                    queryParameters {
-//                        headers {
-//                            header(authorization(), value(c(regex(nonEmpty())), p("Basic [B@15b56bb) ")))
-//                        }
-//                    }
+                url ("/v1/oauth2/token"){
+                    queryParameters {
+                        headers {
+                            header(authorization(), value(c(regex(nonEmpty())), p("Basic dXNlcjpwYXNzd29yZA== ")))
+                            header("X-CLIENT-MODE",value(c(regex(nonEmpty())),p("something")))
+                            header("X-GUEST-ACCOUNT-ID",value(c(regex(nonEmpty())),p("something")))
+                        }
+                    }
                 }
                 method POST()
                 body([
@@ -295,20 +296,6 @@ class OpenApiContactConverterTest extends Specification {
                         account_id: value(c("account_id"),p(regex(nonEmpty()))),
                         account_href: value(c("account_href"),p(regex(nonEmpty())))
                 )
-
-               /* body (
-                    '''
-                    {
-                        "access_token" : "accesstoken",
-                        "token_type" : "token_type",
-                        "expires_in" : 12000,
-                        "refresh_token" : "refreshToken",
-                        "account_id" : "accountID",
-                        "account_href" :  "account_href"
-                    }
-                    '''
-                )
-*/
                 headers {
                     contentType(applicationJson())
                 }
@@ -321,6 +308,7 @@ class OpenApiContactConverterTest extends Specification {
         def yamlContract =  objectMapper.writeValueAsString( addressContracts[0] )
 
         then:
+        println("=== \n"+objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(addressContracts[1] ))
 //        groovyContract /*== yamlContract*/
         groovyContract == yamlContract
 //        println(groovyContract)
@@ -358,6 +346,30 @@ class OpenApiContactConverterTest extends Specification {
 
         then:
         println(" extracted data "+ objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(map) )
+    }
+
+    def "validate if contract for user could be parsed"(){
+        when:
+        OpenApiConverterHelper openApiConverterHelper = new OpenApiConverterHelper()
+        URL petstoreUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_user.yml")
+        File petstoreFile = new File(petstoreUrl.toURI())
+        Map<String, XContract> map = openApiConverterHelper.getStringXContractHashMap(openApiConverterHelper.fromFile(petstoreFile))
+
+        then:
+        println(" extracted data "+ objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(map) )
+    }
+
+
+    def "validate if contract creation for user could be done"(){
+        when:
+        OpenApiConverterHelper openApiConverterHelper = new OpenApiConverterHelper()
+        URL petstoreUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_user.yml")
+        File petstoreFile = new File(petstoreUrl.toURI())
+//        Map<String, XContract> map = openApiConverterHelper.getStringXContractHashMap(openApiConverterHelper.fromFile(petstoreFile))
+        Collection<Contract> addressContracts = contactConverter.convertFrom(petstoreFile)
+
+        then:
+        println(" addressContracts  data "+ objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(addressContracts) )
     }
 
 }

@@ -227,24 +227,25 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                 url(contractPath) {
                                                     queryParameters {
                                                         operation?.parameters?.each { openApiParam ->
+                                                            String paramName = openApiParam.name
                                                             if (openApiParam.in == 'header') {
                                                                 log.info(" --- inside ---param --- header ")
-                                                                log.info(" -header --{} ",xContract.XRequestMatcher.xheader[openApiParam.name])
-                                                                def xheader = xContract.XRequestMatcher.xheader[openApiParam.name]
+                                                                log.info(" -header --{} ",xContract.XRequestMatcher.xheader[paramName])
+                                                                def xheader = xContract.XRequestMatcher.xheader[paramName]
                                                                 def regexval = xheader?.value?:"[0-9a-zA-Z]{10}"
                                                                 log.info(" regexval {} ",regexval)
 //                                                                headers {
-                                                                if(openApiParam.name == "Authorization") {
-                                                                    headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())), p(DataGeneratorHelper.generateBasicAuthCode()))))
+                                                                if(paramName == "Authorization") {
+                                                                    headerList.add(new Header(paramName, value(c(regex(nonEmpty())), p(DataGeneratorHelper.generateBasicAuthCode()))))
                                                                 } else {
-                                                                    headerList.add(new Header(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval)))))
+                                                                    headerList.add(new Header(paramName, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval)))))
                                                                 }
 //                                                                }
                                                             }
                                                             if (openApiParam.in == 'query') {
-                                                                log.info(" --- inside ---param --- query ")
-                                                                def xquery = xContract.XRequestMatcher.XRequestParams[openApiParam.name]
-                                                                log.info(" -query --{} ",query)
+                                                                log.info(" --- inside ---param {} --- query ",paramName)
+                                                                def xquery = (xContract?.XRequestMatcher?.XRequestParams) ? xContract?.XRequestMatcher?.XRequestParams[paramName] : ""
+                                                                log.info(" -query --{} ",xquery)
                                                                 def regexval = xquery?.value?:"[0-9a-zA-Z]{10}"
                                                                 parameter(openApiParam.name, value(c(regex(nonEmpty())),p(DataGeneratorHelper.randomValueGenerator(regexval))))
                                                             }
@@ -272,7 +273,6 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
 
                                             if(operation?.requestBody?.content){
                                                 LinkedHashMap<String, MediaType> content = operation?.requestBody?.content
-                                                //todo - not sure if there is a use case for more than one map entry here
                                                 header(contentType(), containing(content.entrySet().getAt(0).key))
                                             }
                                         }
@@ -280,64 +280,56 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                         if (operation?.requestBody?.extensions?."x-contracts") {
                                             operation?.requestBody?.extensions?."x-contracts"?.each { contractBody ->
                                                 if (contractBody.contractId == contractId) {
-//                                                    log.debug ("-------contract body ${contractBody.body} -----------")
-//                                                    body(toDslProperty(contractBody.body))
-                                                    def data = new HashMap<String,DslProperty>()
-                                                    contractBody?.body?.each{ entry ->
-//                                                        log.debug( "---- ${entry}")
-//                                                        log.debug(" ----${contractBody?.matchers?.body[0].getClass().name}")
-                                                        if(operation?.requestBody?.content.entrySet().getAt(0).key != 'application/x-www-form-urlencoded') {
-                                                            if (contractBody.matchers?.body != null) {
-                                                                Pattern regexVal = regexifFound(contractBody.matchers.body, entry.key)
-                                                                log.debug("-----------> {} ", regexVal)
-                                                                data.put(entry.key, value(c(regex(regexVal)), p(entry.value)))
-//                                                            data.put(entry.key, value(c(entry.value), p(entry.value)))
-                                                            } else {
-                                                                data.put(entry.key, entry.value)
-                                                            }
-                                                        } else {
-                                                            data.put(entry.key, entry.value)
-                                                        }
-                                                    }
-
                                                     String JSON_STRING = xContract.XRequestBody['default_body']
                                                     if(JSON_STRING){
                                                         Map<String, Object> requestBodyMap = objectMapper.readValue(JSON_STRING, new TypeReference<Map<String, Object>>(){})
-//                                                                body(responseContract.body)
-                                                        //todo construct the Map<String,DslProperty>
-                                                        def data1 = JsonModelHelper.getRequestBodyDSL(requestBodyMap,xContract.XRequestBody.xbody)
+                                                        def data1 = JsonModelHelper.getRequestBodyDSL(requestBodyMap,xContract.XRequestMatcher.xbody)
                                                         body(data1)
                                                     } else {
+                                                        def data = new HashMap<String,DslProperty>()
+                                                        contractBody?.body?.each{ entry ->
+                                                            if(operation?.requestBody?.content.entrySet().getAt(0).key != 'application/x-www-form-urlencoded') {
+                                                                if (contractBody.matchers?.body != null) {
+                                                                    Pattern regexVal = regexifFound(contractBody.matchers.body, entry.key)
+                                                                    data.put(entry.key, value(c(regex(regexVal)), p(entry.value)))
+                                                                } else {
+                                                                    data.put(entry.key, entry.value)
+                                                                }
+                                                            } else {
+                                                                data.put(entry.key, entry.value)
+                                                            }
+                                                        }
                                                         body(data)
                                                     }
 
                                                     bodyMatchers {
                                                         contractBody.matchers?.body?.each { matcher ->
                                                             MatchingTypeValue value = null
-                                                            log.debug(" ----------${matcher.type}---------")
-                                                            switch (matcher.type) {
-                                                                case 'by_date':
-                                                                    value = byDate()
-                                                                    break
-                                                                case 'by_time':
-                                                                    value = byTime()
-                                                                    break
-                                                                case 'by_timestamp':
-                                                                    value = byTimestamp()
-                                                                    break
-                                                                case 'by_regex':
-                                                                    String regex = matcher.value
-                                                                    if (matcher.predefined) {
-                                                                        YamlContract.PredefinedRegex  pdRegx = YamlContract.PredefinedRegex.valueOf(matcher.predefined)
-                                                                        regex = predefinedToPattern(pdRegx).pattern()
-                                                                    }
-                                                                    value = byRegex(regex)
-                                                                    break
-                                                                case 'by_equality':
-                                                                    value = byEquality()
-                                                                    break
+                                                            if(!(matcher instanceof  Map.Entry)) {
+                                                                switch (matcher.type) {
+                                                                    case 'by_date':
+                                                                        value = byDate()
+                                                                        break
+                                                                    case 'by_time':
+                                                                        value = byTime()
+                                                                        break
+                                                                    case 'by_timestamp':
+                                                                        value = byTimestamp()
+                                                                        break
+                                                                    case 'by_regex':
+                                                                        String regex = matcher.value
+                                                                        if (matcher.predefined) {
+                                                                            YamlContract.PredefinedRegex pdRegx = YamlContract.PredefinedRegex.valueOf(matcher.predefined)
+                                                                            regex = predefinedToPattern(pdRegx).pattern()
+                                                                        }
+                                                                        value = byRegex(regex)
+                                                                        break
+                                                                    case 'by_equality':
+                                                                        value = byEquality()
+                                                                        break
+                                                                }
+                                                                jsonPath(matcher.path, value)
                                                             }
-                                                            jsonPath(matcher.path, value)
                                                         }
                                                     }
                                                 }
@@ -365,19 +357,32 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                             }
 
                                                             headers {
+                                                                boolean contentTypeSet = false
+                                                                if(openApiResponse?.value?.content){
+                                                                    LinkedHashMap<String, MediaType> content = openApiResponse?.value?.content
+                                                                    String contentTypeStr = content.entrySet().getAt(0).key + ";charset=UTF-8"
+                                                                    header(contentType(), contentTypeStr)
+                                                                    contentTypeSet = true
+                                                                }
 
                                                                 responseContract.headers.each { String headerKey, Object headerValue ->
                                                                     def matcher = responseContract?.matchers?.headers?.find { it.key == headerKey }
                                                                     if (headerValue instanceof List) {
                                                                         ((List) headerValue).each {
                                                                             Object serverValue = serverValue(it, matcher, headerKey)
-                                                                            header(headerKey, new DslProperty(it, serverValue))
+                                                                            if(contentTypeSet && headerKey != "Content-Type") {
+                                                                                header(headerKey, new DslProperty(it, serverValue))
+                                                                            }
                                                                         }
                                                                     } else {
                                                                         Object serverValue = serverValue(headerValue, matcher, headerKey)
-                                                                        header(headerKey, new DslProperty(headerValue, serverValue))
+                                                                        if(contentTypeSet && headerKey != "Content-Type") {
+                                                                            header(headerKey, new DslProperty(headerValue, serverValue))
+                                                                        }
                                                                     }
                                                                 }
+
+
                                                             }
 
                                                             if(responseContract.cookies){
@@ -391,44 +396,31 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                             }
 
                                                             if (responseContract.body) {
-                                                                //todo
                                                                 log.debug("-------- ${responseContract.body}")
-                                                                def data = new HashMap<String,DslProperty>()
-                                                                responseContract?.body?.each { entry ->
-                                                                    if (responseContract.matchers?.body != null) {
-                                                                        Pattern regexVal = regexifFound(responseContract.matchers.body, entry.key)
-                                                                        String generateRegexBaseValue =DataGeneratorHelper.randomValueGenerator(regexVal.pattern())
-                                                                        log.debug("generated random value --- ${generateRegexBaseValue}")
-                                                                        if (entry.value) {
-//                                                                            log.debug("----------- {} ", regexVal)
-//                                                                            data.put(entry.key, value(c(entry.value), p(regex(regexVal))))
-                                                                            data.put(entry.key, value(c(generateRegexBaseValue), p(regex(regexVal))))
-//                                                                      data.put(entry.key, value(c(entry.value), p(entry.value)))
-                                                                        } else{
-                                                                            //if entry value is null an empty string
-                                                                            data.put(entry.key,generateRegexBaseValue)
-
-                                                                        }
-                                                                    } else {
-                                                                        data.put(entry.key, entry.value)
-                                                                    }
-                                                                }
-
-                                                                //todo if example available.
-                                                                String JSON_STRING = xContract.XResponseBody['default_body']
+                                                                String JSON_STRING = (xContract?.XResponseBody) ? xContract?.XResponseBody['default_body'] : ""
                                                                 if(JSON_STRING){
                                                                     Map<String, Object> responseMap = objectMapper.readValue(JSON_STRING, new TypeReference<Map<String, Object>>(){})
-//                                                                body(responseContract.body)
                                                                     println ( " $responseMap")
-                                                                    //todo construct the Map<String,DslProperty>
-                                                                    def data1 = JsonModelHelper.getResponseBodyDSL(responseMap,xContract.XResponseMatcher.xbody)
+                                                                    def data1 = JsonModelHelper.getResponseBodyDSL(responseMap,xContract.XResponseMatcher.xbody,xContract.XResponseMatcher.bodyIgnoredAttributes)
                                                                     body(data1)
                                                                 } else{
+                                                                    def data = new HashMap<String,DslProperty>()
+                                                                    responseContract?.body?.each { entry ->
+                                                                        if (responseContract.matchers?.body != null) {
+                                                                            Pattern regexVal = regexifFound(responseContract.matchers.body, entry.key)
+                                                                            String generateRegexBaseValue =DataGeneratorHelper.randomValueGenerator(regexVal.pattern())
+                                                                            if (entry.value) {
+                                                                                data.put(entry.key, value(c(generateRegexBaseValue), p(regex(regexVal))))
+                                                                            } else{
+                                                                                //if entry value is null an empty string
+                                                                                data.put(entry.key,generateRegexBaseValue)
+                                                                            }
+                                                                        } else {
+                                                                            data.put(entry.key, entry.value)
+                                                                        }
+                                                                    }
                                                                     body(data)
                                                                 }
-
-
-
                                                             }
 
                                                             if (responseContract.bodyFromFile) body(file(responseContract.bodyFromFile))
@@ -438,40 +430,42 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                             bodyMatchers{
                                                                 responseContract.matchers?.body?.each { matcher ->
                                                                     MatchingTypeValue value = null
-                                                                    switch (matcher.type) {
-                                                                        case 'by_date':
-                                                                            value = byDate()
-                                                                            break
-                                                                        case 'by_time':
-                                                                            value = byTime()
-                                                                            break
-                                                                        case 'by_timestamp':
-                                                                            value = byTimestamp()
-                                                                            break
-                                                                        case 'by_regex':
-                                                                            String regex = matcher.value
-                                                                            if (matcher.predefined) {
-                                                                                regex = predefinedToPattern(YamlContract.PredefinedRegex.valueOf(matcher.predefined)).pattern()
-                                                                            }
-                                                                            value = byRegex(regex)
-                                                                            break
-                                                                        case 'by_equality':
-                                                                            value = byEquality()
-                                                                            break
-                                                                        case 'by_type':
-                                                                            value = byType() {
-                                                                                if (matcher.minOccurrence != null) minOccurrence(matcher.minOccurrence)
-                                                                                if (matcher.maxOccurrence != null) maxOccurrence(matcher.maxOccurrence)
-                                                                            }
-                                                                            break
-                                                                        case 'by_command':
-                                                                            value = byCommand(matcher.value)
-                                                                            break
-                                                                        case 'by_null':
-                                                                            value = byNull()
-                                                                            break
+                                                                    if(!(matcher instanceof  Map.Entry)) {
+                                                                        switch (matcher?.type) {
+                                                                            case 'by_date':
+                                                                                value = byDate()
+                                                                                break
+                                                                            case 'by_time':
+                                                                                value = byTime()
+                                                                                break
+                                                                            case 'by_timestamp':
+                                                                                value = byTimestamp()
+                                                                                break
+                                                                            case 'by_regex':
+                                                                                String regex = matcher.value
+                                                                                if (matcher.predefined) {
+                                                                                    regex = predefinedToPattern(YamlContract.PredefinedRegex.valueOf(matcher.predefined)).pattern()
+                                                                                }
+                                                                                value = byRegex(regex)
+                                                                                break
+                                                                            case 'by_equality':
+                                                                                value = byEquality()
+                                                                                break
+                                                                            case 'by_type':
+                                                                                value = byType() {
+                                                                                    if (matcher.minOccurrence != null) minOccurrence(matcher.minOccurrence)
+                                                                                    if (matcher.maxOccurrence != null) maxOccurrence(matcher.maxOccurrence)
+                                                                                }
+                                                                                break
+                                                                            case 'by_command':
+                                                                                value = byCommand(matcher.value)
+                                                                                break
+                                                                            case 'by_null':
+                                                                                value = byNull()
+                                                                                break
+                                                                        }
+                                                                        jsonPath(matcher.path, value)
                                                                     }
-                                                                    jsonPath(matcher.path, value)
                                                                 }
                                                             }
                                                         }
@@ -594,7 +588,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
         return clientValue
     }
 
-//todo - extend from yaml converter?
+    //todo - extend from yaml converter?
     private void assertPatternMatched(Pattern pattern, value, String key) {
         boolean matches = pattern.matcher(value.toString()).matches()
         if (!matches) throw new IllegalStateException("Broken headers! A header with " +

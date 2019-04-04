@@ -15,20 +15,8 @@ paths:
           priority: 1
           method: post
         - contractId: 9
-          name: get access token for grant type client credentials
-          priority: 2
-          method: post
-        - contractId: 10
-          name: get access token for grant type client credentials for fusion
-          priority: 3
-          method: post
-        - contractId: 11
-          name: get access token for grant type refresh token
-          priority: 4
-          method: post
-        - contractId: 12
-          name: get access token for grant type authorization code with guest id
-          priority: 5
+          name: get access token for grant type password failure
+          priority: 1
           method: post
       requestBody:
         content:
@@ -63,121 +51,9 @@ paths:
               "grant_type": "password"
               "username": "user"
               "password": "password"
-            matchers:
-              body:
-                - path: $.['grant_type']
-                  type: by_regex
-                  in: body
-                  predefined: non_empty
-                - path: $.['username']
-                  in: body
-                  type: by_regex
-                  predefined: non_empty
-                - path: $.['password']
-                  in: body
-                  type: by_regex
-                  predefined: non_empty
-              paramaters:
-                - name: Authorization
-                  in: header
-                  type: by_regex
-                  predefined: non_empty
-            paramaters:
-              - name: Authorization
-                in: header
-                type: by_type
-                value: "Basic csc_user:jcpenney2017"
           - contractId: 9
             body:
-              "grant_type": "client_credentials"
-            matchers:
-              body:
-                - path: $.['grant_type']
-                  type: by_regex
-                  in: body
-                  predefined: non_empty
-              paramaters:
-                - name: Authorization
-                  in: header
-                  type: by_regex
-                  predefined: non_empty
-          - contractId: 11
-            body:
-              "grant_type": "refresh_token"
-              "refresh_token": "12343434"
-            matchers:
-              body:
-                - path: $.['grant_type']
-                  type: by_regex
-                  in: body
-                  predefined: non_empty
-                - path: $.['refresh_token']
-                  type: by_regex
-                  in: body
-                  predefined: non_empty
-              paramaters:
-                - name: Authorization
-                  in: header
-                  type: by_regex
-                  predefined: non_empty
-          - contractId: 12
-            body:
-              "grant_type": "authorization_code"
-              "code": "12343434"
-            matchers:
-              body:
-                - path: $.['grant_type']
-                  type: by_regex
-                  in: body
-                  predefined: non_empty
-                - path: $.['code']
-                  type: by_regex
-                  in: body
-                  predefined: non_empty
-              paramaters:
-                - name: Authorization
-                  in: header
-                  type: by_regex
-                  predefined: non_empty
-          - contractId: 10
-            body:
-              "grant_type": "client_credentials"
-              "client_id": "1234"
-              "store_id": "21"
-              "terminal_id": "t1"
-              "associate_id": "A1232323"
-              "security_level": "2"
-            matchers:
-              body:
-                - path: $.['grant_type']
-                  type: by_regex
-                  in: body
-                  predefined: non_empty
-                - path: $.['client_id']
-                  in: body
-                  type: by_regex
-                  predefined: non_empty
-                - path: $.['store_id']
-                  in: body
-                  type: by_regex
-                  predefined: non_empty
-                - path: $.['terminal_id']
-                  in: body
-                  type: by_regex
-                  predefined: non_empty
-                - path: $.['associate_id']
-                  in: body
-                  type: by_regex
-                  predefined: non_empty
-                - path: $.['security_level']
-                  in: body
-                  type: by_regex
-                  predefined: non_empty
-              paramaters:
-                - name: Authorization
-                  in: header
-                  type: by_regex
-                  predefined: non_empty
+              "grant_type": "password"
       parameters:
         - name: Authorization
           in: header
@@ -216,285 +92,28 @@ paths:
                 Content-Type: application/json;charset=UTF-8
               matchers:
                 body:
-                  - path: access_token
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: token_type
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: expires_in
-                    type: by_regex
-                    in: body
-                    value: "[0-9]{4,5}"
-                  #                    predefined: number
-                  - path: refresh_token
-                    type: by_regex
-                    in: body
-                    predefined: non_empty
-                  - path: account_id
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: account_href
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
+                  matcher-ref: "#/components/schemas/accessToken"
+#                  ignore:
+#                    - account_id
+#                    - account_href
+        401:
+          description: Unauthorized request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+          x-contracts:
             - contractId: 9
-              status: 200
+              status: 401
               body:
-                $ref: "#/components/schemas/accessToken"
-              headers:
-                Content-Type: application/json;charset=UTF-8
-              matchers:
-                body:
-                  - path: access_token
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: token_type
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: expires_in
-                    type: by_regex
-                    in: body
-                    value: "[0-9]{4,5}"
-                  - path: refresh_token
-                    type: by_regex
-                    in: body
-                    predefined: non_empty
-                  - path: account_id
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: account_href
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-            - contractId: 10
-              status: 200
-              body:
-                $ref: "#/components/schemas/accessToken"
-              headers:
-                Content-Type: application/json;charset=UTF-8
-              matchers:
-                body:
-                  - path: access_token
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: token_type
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: expires_in
-                    type: by_regex
-                    in: body
-                    value: "[0-9]{4,5}"
-                  - path: refresh_token
-                    type: by_regex
-                    in: body
-                    predefined: non_empty
-                  - path: account_id
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: account_href
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-            - contractId: 11
-              status: 200
-              body:
-                $ref: "#/components/schemas/accessToken"
-              headers:
-                Content-Type: application/json;charset=UTF-8
-              matchers:
-                body:
-                  - path: access_token
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: token_type
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: expires_in
-                    type: by_regex
-                    in: body
-                    value: "[0-9]{4,5}"
-                  - path: refresh_token
-                    type: by_regex
-                    in: body
-                    predefined: non_empty
-                  - path: account_id
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: account_href
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-            - contractId: 12
-              status: 200
-              body:
-                $ref: "#/components/schemas/accessToken"
-              headers:
-                Content-Type: application/json;charset=UTF-8
-              matchers:
-                body:
-                  - path: access_token
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: token_type
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: expires_in
-                    type: by_regex
-                    in: body
-                    value: "[0-9]{4,5}"
-                  - path: refresh_token
-                    type: by_regex
-                    in: body
-                    predefined: non_empty
-                  - path: account_id
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-                  - path: account_href
-                    type: by_regex
-                    in: body
-                    value: "[a-zA-Z0-9]{5,10}"
-  # /samlToken:
-  #   post:
-  #     summary: Returns a list of token.
-  #     description: Optional extended description in Markdown.
-  #     x-contracts:
-  #       - contractId: 9
-  #         name: get access token for posted saml form data
-  #         priority: 1
-  #         method: post
-  #     requestBody:
-  #       content:
-  #         application/x-www-form-urlencoded:
-  #           schema:
-  #             type: object
-  #             properties:
-  #               grant_type:
-  #                 type: string
-  #                 description: grant type would be one of these values ,
-  #               assertion:
-  #                 type: string
-  #       x-contracts:
-  #         - contractId: 9
-  #           body:
-  #             "grant_type": "client_credentials"
-  #             "username": "user"
-  #             "password": "password"
-  #           matchers:
-  #             body:
-  #               - path: $.['grant_type']
-  #                 type: by_regex
-  #                 in: body
-  #                 predefined: non_empty
-  #               - path: $.['username']
-  #                 type: by_regex
-  #                 in: body
-  #                 predefined: non_empty
-  #               - path: $.['password']
-  #                 type: by_regex
-  #                 in: body
-  #                 predefined: non_empty
-  #             header:
-  #               - path: Authorization
-  #                 type: byregex
-  #                 predefined: non_empty
-  #                 value: 'Basic csc_user:password'
-  #     parameters:
-  #       - name: Authorization
-  #         in: header
-  #         description: authorization with base userid credentials
-  #         required: false
-  #         schema:
-  #           type: string
-  #           default: "something.somethign"
-  #         x-contracts:
-  #           - contractId: 9
-  #             matchers:
-  #               body:
-  #                 - path: $.['refresh_token']
-  #                   type: by_regex
-  #                   predefined: non_empty
-  #                   in: body
-  #       - name: X-CLIENT-MODE
-  #         in: header
-  #         description: authorization jwt token
-  #         required: false
-  #         schema:
-  #           type: string
-  #           default: "something.somethign"
-  #     responses:
-  #       200:
-  #         description: OK
-  #         content:
-  #           application/json:
-  #             schema:
-  #               $ref: "#/components/schemas/accessToken"
-  #         x-contracts:
-  #           - contractId: 9
-  #             status: 200
-  #             body:
-  #               $ref: "#/components/schemas/accessToken"
-  #             headers:
-  #               Content-Type: application/json;charset=UTF-8
-  #             matchers:
-  #               body:
-  #                 - path: $.['access_token']
-  #                   type: by_regex
-  #                   in: body
-  #                   predefined: non_empty
-  #                 - path: $.['token_type']
-  #                   type: by_regex
-  #                   in: body
-  #                   predefined: non_empty
-  #                 - path: $.['expires_in']
-  #                   type: by_regex
-  #                   in: body
-  #                   predefined: number
-  #                 - path: $.['refresh_token']
-  #                   type: by_regex
-  #                   in: body
-  #                   predefined: non_empty
-  #                 - path: $.['account_id']
-  #                   type: by_regex
-  #                   in: body
-  #                   predefined: non_empty
-  #                 - path: $.['account_href']
-  #                   type: by_regex
-  #                   in: body
-  #                   predefined: non_empty
-  #               header:
-  #                 - name: content-type
-  #                   type: by_regex
-  #                   in: header
-  #                   predefined: non_empty
+                $ref: "#/components/schemas/errorResponse"
+
+
 components:
   schemas:
     accessToken:
       type: object
-      example: |
-        {
-            "access_token":"something",
-             "token_type":"something" ,
-             "refresh_token":"refresh token" ,
-             "account_id" :"account id" ,
-             "account_href": "account href" ,
-             "expires_in": 12
-        }
+      example: classpath:access_token.json
       description: "response OAuth body structure"
       title: '#accessToken'
       properties:
@@ -510,31 +129,21 @@ components:
           type: string
         account_href:
           type: string
-      x-contract:
+      x-contracts:
         default:
           matchers:
-            body:
-              - path: access_token
-                type: by_regex
-                in: body
-                value: "[a-zA-Z0-9]{5,10}"
-              - path: token_type
-                type: by_regex
-                in: body
-                value: "[a-zA-Z0-9]{5,10}"
-              - path: expires_in
-                type: by_regex
-                in: body
-                value: "[0-9]{4,5}"
-              - path: refresh_token
-                type: by_regex
-                in: body
-                predefined: non_empty
-              - path: account_id
-                type: by_regex
-                in: body
-                value: "[a-zA-Z0-9]{5,10}"
-              - path: account_href
-                type: by_regex
-                in: body
-                value: "[a-zA-Z0-9]{5,10}"
+            body: classpath:access_token_body_matcher.yml
+    errorResponse:
+      type: object
+      example: classpath:error_response.json
+      description: "error response body"
+      title: '#errorResponse'
+      properties:
+        error_code:
+          type: string
+        error_msg:
+          type: string
+      x-contracts:
+        default:
+          matchers:
+            body: classpath:error_response_body_matcher.yml

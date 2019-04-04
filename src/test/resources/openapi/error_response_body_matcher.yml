@@ -1,0 +1,8 @@
+- path: error_code
+  type: by_regex
+  in: body
+  value: "[a-zA-Z0-9]{5,10}"
+- path: error_msg
+  type: by_regex
+  in: body
+  value: "[a-zA-Z0-9]{5,10}"

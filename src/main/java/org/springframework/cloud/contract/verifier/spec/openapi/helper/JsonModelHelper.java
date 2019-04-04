@@ -16,10 +16,11 @@ public class JsonModelHelper {
     private static Random random = new Random();
     private static XContractCommon com = new XContractCommon();
 
-    public static Map<String,Object> getResponseBodyDSL(Map<String, Object> dataJsonMap, Map<String, XMatcherDetails> responseMatchers) {
+    public static Map<String,Object> getResponseBodyDSL(Map<String, Object> dataJsonMap, Map<String, XMatcherDetails> responseMatchers,Set<String> ignoredAttributes) {
         LinkedHashMap<String,Object> data1= new LinkedHashMap<>();
         for(Map.Entry<String,Object> keyValue: dataJsonMap.entrySet()){
-            getResponseBody(responseMatchers, data1, keyValue);
+            if(!ignoredAttributes.contains(keyValue.getKey()))
+                getResponseBody(responseMatchers, data1, keyValue,ignoredAttributes);
         }
         return data1;
     }
@@ -34,8 +35,8 @@ public class JsonModelHelper {
     }
 
 
-    private static void getResponseBody(Map<String, XMatcherDetails> responseMatchers, LinkedHashMap<String, Object> data1, Map.Entry<String, Object> keyValue) {
-        if (keyValue != null) {
+    private static void getResponseBody(Map<String, XMatcherDetails> responseMatchers, LinkedHashMap<String, Object> data1, Map.Entry<String, Object> keyValue,Set<String> ignoredAttributes) {
+        if (keyValue != null && !ignoredAttributes.contains(keyValue.getKey())) {
             String innerkey = keyValue.getKey();
             Object valueObj = keyValue.getValue();
             Optional<String> regexValue = regexForKey(responseMatchers, innerkey);
@@ -58,7 +59,7 @@ public class JsonModelHelper {
                         )
                 );
             } else if (valueObj instanceof Map) {
-                data1.put(innerkey, extractResponseData(valueObj, responseMatchers));
+                data1.put(innerkey, extractResponseData(valueObj, responseMatchers,ignoredAttributes));
             }
         }
     }
@@ -94,11 +95,12 @@ public class JsonModelHelper {
     }
 
 
-    private static Object extractResponseData(Object data,Map<String, XMatcherDetails> responseMatchers) {
+    private static Object extractResponseData(Object data,Map<String, XMatcherDetails> responseMatchers,Set<String> ignoredAttributes) {
         LinkedHashMap<String,Object> extractedMap = new LinkedHashMap<>();
         if (data instanceof Map) {
             for (Map.Entry<String, Object> keyValue : ((Map<String, Object>) data).entrySet()) {
-                getResponseBody(responseMatchers, extractedMap, keyValue);
+                if(!ignoredAttributes.contains(keyValue.getKey()))
+                    getResponseBody(responseMatchers, extractedMap, keyValue,ignoredAttributes);
             }
         }
         return extractedMap;

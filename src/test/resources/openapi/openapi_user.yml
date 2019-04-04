@@ -1,0 +1,129 @@
+openapi: "3.0.0"
+info:
+  description: Spring Cloud Contract Verifier Http Server OA3 Sample
+  version: "1.0.0"
+  title: Address Microservice api
+paths:
+  /user/save:
+    post:
+      summary: Store user info.
+      description: post user data to store in the database
+      x-contracts:
+        - contractId: 1
+          name: post user info to store the details...
+          priority: 1
+          method: post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/user"
+        x-contracts:
+          - contractId: 1
+            body:
+              $ref: "#/components/schemas/user"
+            matchers:
+              body:
+                matcher-ref: "#/components/schemas/user"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/user"
+          x-contracts:
+            - contractId: 1
+              status: 200
+              body:
+                $ref: "#/components/schemas/user"
+              matchers:
+                body:
+                  matcher-ref: "#/components/schemas/user"
+components:
+  schemas:
+    user:
+      type: object
+      example: |
+             {
+              "user_id":1,
+              "name":"John",
+              "age":34,
+              "address": {
+                "street_id": 1,
+                "street":"legacy dr",
+                "city": "the colony",
+                "zipcode": "75056"
+                }
+              }
+      properties:
+        user_id:
+          type: integer
+        name:
+          type: string
+        age:
+          type: integer
+        address:
+          $ref: "#/components/schemas/address"
+      x-contracts:
+        default:
+          matchers:
+            body:
+              - path: user_id
+                type: by_regex
+                in: body
+                value: "[0-9]{1,10}"
+              - path: name
+                type: by_regex
+                in: body
+                value: "[a-zA-Z0-9]{5,10}"
+              - path: age
+                type: by_regex
+                in: body
+                value: "[0-9]{1,2}"
+              - path: street_id
+                type: by_regex
+                in: body
+                value: "[0-9]{5,10}"
+              - path: city
+                type: by_regex
+                in: body
+                value: "[a-zA-Z0-9]{5,10}"
+              - path: zipcode
+                type: by_regex
+                in: body
+                value: "[0-9]{5,8}"
+    address:
+      type: object
+      example: |
+                {
+                  "street":"legacy dr",
+                  "city": "the colony",
+                  "zipcode": "75056"
+                }
+      properties:
+        street_id:
+          type: integer
+        street:
+          type: string
+        city:
+          type: string
+        zipcode:
+          type: integer
+      x-contracts:
+        default:
+          matchers:
+            body:
+              - path: street_id
+                type: by_regex
+                in: body
+                value: "[0-9]{1,10}"
+              - path: city
+                type: by_regex
+                in: body
+                value: "[a-zA-Z0-9]{5,10}"
+              - path: zipcode
+                type: by_regex
+                in: body
+                value: "[0-9]{5,8}"
+      

@@ -8,20 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.Map;
 
-/**
- * Map<ContractId,Contract>
- *
- * Contract
- * 	path params
- * 	body <String ,Object>
- * 	headers<String,String>
- * 	Matcher
- * 		body
- *
- * 		header
- *
- * 		parameters
- */
 
 @Data
 @AllArgsConstructor
