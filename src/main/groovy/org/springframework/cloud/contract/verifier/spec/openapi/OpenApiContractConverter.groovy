@@ -281,10 +281,17 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                             operation?.requestBody?.extensions?."x-contracts"?.each { contractBody ->
                                                 if (contractBody.contractId == contractId) {
                                                     String JSON_STRING = xContract.XRequestBody['default_body']
-                                                    if(JSON_STRING){
-                                                        Map<String, Object> requestBodyMap = objectMapper.readValue(JSON_STRING, new TypeReference<Map<String, Object>>(){})
-                                                        def data1 = JsonModelHelper.getRequestBodyDSL(requestBodyMap,xContract.XRequestMatcher.xbody)
-                                                        body(data1)
+                                                    if(JSON_STRING) {
+                                                        if (JSON_STRING.trim().startsWith("[")) {
+                                                            List<Map<String, Object>> requestMapList = objectMapper.readValue(JSON_STRING, new TypeReference<List<Map<String, Object>>>() {
+                                                            })
+                                                            def data1 = requestMapList.collect { requestBodyMap -> JsonModelHelper.getRequestBodyDSL(requestBodyMap, xContract.XRequestMatcher.xbody) }
+                                                            body(data1)
+                                                        } else {
+                                                            Map<String, Object> requestBodyMap = objectMapper.readValue(JSON_STRING, new TypeReference<Map<String, Object>>() {})
+                                                            def data1 = JsonModelHelper.getRequestBodyDSL(requestBodyMap, xContract.XRequestMatcher.xbody)
+                                                            body(data1)
+                                                        }
                                                     } else {
                                                         def data = new HashMap<String,DslProperty>()
                                                         contractBody?.body?.each{ entry ->
@@ -398,11 +405,18 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                                                             if (responseContract.body) {
                                                                 log.debug("-------- ${responseContract.body}")
                                                                 String JSON_STRING = (xContract?.XResponseBody) ? xContract?.XResponseBody['default_body'] : ""
-                                                                if(JSON_STRING){
-                                                                    Map<String, Object> responseMap = objectMapper.readValue(JSON_STRING, new TypeReference<Map<String, Object>>(){})
-                                                                    println ( " $responseMap")
-                                                                    def data1 = JsonModelHelper.getResponseBodyDSL(responseMap,xContract.XResponseMatcher.xbody,xContract.XResponseMatcher.bodyIgnoredAttributes)
-                                                                    body(data1)
+                                                                if(JSON_STRING) {
+                                                                    if (JSON_STRING.trim().startsWith("[")) {
+                                                                        List<Map<String, Object>> responseMapList = objectMapper.readValue(JSON_STRING, new TypeReference<List<Map<String, Object>>>() {})
+                                                                        def data1 = responseMapList.collect { responseMap ->
+                                                                            JsonModelHelper.getResponseBodyDSL(responseMap, xContract.XResponseMatcher.xbody, xContract.XResponseMatcher.bodyIgnoredAttributes)
+                                                                        }
+                                                                        body(data1)
+                                                                    } else {
+                                                                        Map<String, Object> responseMap = objectMapper.readValue(JSON_STRING, new TypeReference<Map<String, Object>>() {})
+                                                                        def data1 = JsonModelHelper.getResponseBodyDSL(responseMap, xContract.XResponseMatcher.xbody, xContract.XResponseMatcher.bodyIgnoredAttributes)
+                                                                        body(data1)
+                                                                    }
                                                                 } else{
                                                                     def data = new HashMap<String,DslProperty>()
                                                                     responseContract?.body?.each { entry ->
@@ -479,7 +493,7 @@ class OpenApiContractConverter implements ContractConverter<Collection<PathItem>
                 }
             }
         }
-        log.debug("constact json {}",jsonObjectWriter.writeValueAsString(sccContracts[0]))
+        //log.debug("constact json {}",jsonObjectWriter.writeValueAsString(sccContracts[0]))
         return sccContracts
     }
 

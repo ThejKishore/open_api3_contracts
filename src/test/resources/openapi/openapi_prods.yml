@@ -1,0 +1,86 @@
+openapi: "3.0.0"
+info:
+  description: Spring Cloud Contract Verifier Http Server OA3 Sample
+  version: "1.0.0"
+  title: Product Microservice api
+paths:
+  /prods:
+    get:
+      summary: list of products
+      description: get product list from datasource
+      x-contracts:
+        - contractId: 1
+          name: get product list from datasource
+          priority: 1
+          method: get
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/products"
+          x-contracts:
+            - contractId: 1
+              status: 200
+              body:
+                $ref: "#/components/schemas/products"
+              matchers:
+                body:
+                  matcher-ref: "#/components/schemas/products"
+components:
+  schemas:
+    products:
+      type: array
+      items:
+        $ref: "#/components/schemas/product"
+      example: |
+        [
+          {
+            "product_id": 1,
+            "productName":"Apple"
+          },
+          {
+            "product_id": 2,
+            "productName":"Samsung"
+          }
+        ]
+      x-contracts:
+        default:
+          matchers:
+            body:
+              - path: product_id
+                type: by_regex
+                in: body
+                value: "[0-9]{1,10}"
+              - path: productName
+                type: by_regex
+                in: body
+                value: "[a-zA-Z0-9]{5,10}"
+    product:
+      type: object
+      example: |
+        {
+          "product_id": 1,
+          "productName":"legacy dr"
+        }
+
+      properties:
+        product_id:
+          type: integer
+        productName:
+          type: string
+      x-contracts:
+        default:
+          matchers:
+            body:
+              - path: product_id
+                type: by_regex
+                in: body
+                value: "[0-9]{1,10}"
+              - path: productName
+                type: by_regex
+                in: body
+                value: "[a-zA-Z0-9]{5,10}"

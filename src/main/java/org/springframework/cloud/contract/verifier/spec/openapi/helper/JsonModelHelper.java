@@ -8,6 +8,7 @@ import org.springframework.cloud.contract.verifier.spec.openapi.model.XMatcherDe
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class JsonModelHelper {
 
@@ -58,6 +59,10 @@ public class JsonModelHelper {
                         regexValue.map(regexData -> com.p(com.regex(regexData))).orElseGet(() -> com.p(com.regex(com.nonEmpty())))
                         )
                 );
+            } else if (valueObj instanceof List) {
+                List<Object> data = (List)((List) valueObj).stream()
+                        .map(value -> extractResponseData(value, responseMatchers,ignoredAttributes)).collect(Collectors.toList());
+                data1.put(innerkey,data);
             } else if (valueObj instanceof Map) {
                 data1.put(innerkey, extractResponseData(valueObj, responseMatchers,ignoredAttributes));
             }
@@ -65,11 +70,11 @@ public class JsonModelHelper {
     }
 
 
-    private static void getRequestBody(Map<String, XMatcherDetails> responseMatchers, LinkedHashMap<String, Object> data1, Map.Entry<String, Object> keyValue) {
+    private static void getRequestBody(Map<String, XMatcherDetails> requestMatchers, LinkedHashMap<String, Object> data1, Map.Entry<String, Object> keyValue) {
         if (keyValue != null) {
             String innerkey = keyValue.getKey();
             Object valueObj = keyValue.getValue();
-            Optional<String> regexValue = regexForKey(responseMatchers, innerkey);
+            Optional<String> regexValue = regexForKey(requestMatchers, innerkey);
             if (valueObj instanceof Date) {
                 data1.put(innerkey, com.value(
                         regexValue.map(regexData -> com.c(com.regex(regexData))).orElseGet(() -> com.c(com.regex(com.isoDateTime()))),
@@ -88,8 +93,12 @@ public class JsonModelHelper {
                         regexValue.map(regexData -> com.p(DataGeneratorHelper.randomValueGenerator(regexData))).orElseGet(() -> com.p("something"))
                         )
                 );
+            } else if (valueObj instanceof List) {
+                List<Object> data = (List)((List) valueObj).stream()
+                        .map(value -> extractRequestData(value, requestMatchers)).collect(Collectors.toList());
+                data1.put(innerkey,data);
             } else if (valueObj instanceof Map) {
-                data1.put(innerkey, extractRequestData(valueObj, responseMatchers));
+                data1.put(innerkey, extractRequestData(valueObj, requestMatchers));
             }
         }
     }

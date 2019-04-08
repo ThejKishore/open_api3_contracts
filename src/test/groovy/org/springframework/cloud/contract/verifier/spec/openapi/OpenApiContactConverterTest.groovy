@@ -372,4 +372,51 @@ class OpenApiContactConverterTest extends Specification {
         println(" addressContracts  data "+ objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(addressContracts) )
     }
 
+
+    def "validate if contract for order could be parsed"(){
+        when:
+        OpenApiConverterHelper openApiConverterHelper = new OpenApiConverterHelper()
+        URL petstoreUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_prod.yml")
+        File petstoreFile = new File(petstoreUrl.toURI())
+        Map<String, XContract> map = openApiConverterHelper.getStringXContractHashMap(openApiConverterHelper.fromFile(petstoreFile))
+
+        then:
+        println(" extracted data "+ objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(map) )
+    }
+
+
+    def "validate if contract creation for order could be done"(){
+        when:
+        URL petstoreUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_prod.yml")
+        File petstoreFile = new File(petstoreUrl.toURI())
+        Collection<Contract> addressContracts = contactConverter.convertFrom(petstoreFile)
+
+        then:
+        println(" addressContracts  data "+ objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(addressContracts) )
+    }
+
+
+    def "validate if contract for products could be parsed"(){
+        when:
+        OpenApiConverterHelper openApiConverterHelper = new OpenApiConverterHelper()
+        URL petstoreUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_prods.yml")
+        File petstoreFile = new File(petstoreUrl.toURI())
+        Map<String, XContract> map = openApiConverterHelper.getStringXContractHashMap(openApiConverterHelper.fromFile(petstoreFile))
+
+        then:
+        println(" extracted data "+ objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(map) )
+    }
+
+
+    def "validate if contract creation for products could be done"(){
+        when:
+        URL petstoreUrl = OpenApiConverterHelper.class.getResource("/openapi/openapi_prods.yml")
+        File petstoreFile = new File(petstoreUrl.toURI())
+        Collection<Contract> addressContracts = contactConverter.convertFrom(petstoreFile)
+
+        then:
+        println(" addressContracts  data "+ objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(addressContracts) )
+    }
+
+
 }
